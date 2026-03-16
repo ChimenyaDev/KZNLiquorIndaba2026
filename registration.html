@@ -63,7 +63,7 @@
     height: 48px;
     background: rgba(255,255,255,0.25);
   }
-  .logo-edtea { height: 40px; width: auto; filter: brightness(0) invert(1); }
+  .logo-edtea { height: 40px; width: auto; }
 
   .header-event-info {
     text-align: right;
@@ -766,6 +766,23 @@
   Committee administrators: <a href="admin.html">Access Admin Dashboard →</a>
 </div>
 
+<!-- GOOGLE SHEETS SETUP BANNER (hidden once SHEET_URL is configured) -->
+<div id="setupBanner" style="display:none;background:#fff3cd;border-bottom:2px solid #f4a020;padding:12px 24px;font-family:'DM Sans',sans-serif;font-size:0.83rem;color:#664d00;">
+  <strong>⚙️ Setup Required:</strong> This registration form is running in <strong>offline mode</strong> — submissions are saved locally only.
+  To activate live Google Sheets sync, open <strong>admin.html</strong>, copy the Apps Script code from the <em>Setup Guide</em> tab, deploy it, and paste your Web App URL into both <code>registration.html</code> and <code>admin.html</code>.
+  <a href="admin.html" style="color:#1a3560;font-weight:700;margin-left:8px;">View Setup Guide →</a>
+</div>
+<script>
+  // Show setup banner if SHEET_URL is not yet configured
+  (function(){
+    var url = (typeof SHEET_URL !== 'undefined') ? SHEET_URL : '';
+    if (!url || url === '') {
+      var b = document.getElementById('setupBanner');
+      if (b) b.style.display = 'block';
+    }
+  })();
+</script>
+
 <!-- HEADER -->
 <header class="site-header">
   <div class="header-inner">
@@ -1210,7 +1227,7 @@
               <div class="popi-point-icon">
                 <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
               </div>
-              <div><strong>Your Rights:</strong> You have the right to access, correct, or request deletion of your personal information at any time by contacting KZNERA at <strong>indaba@kznera.co.za</strong>.</div>
+              <div><strong>Your Rights:</strong> You have the right to access, correct, or request deletion of your personal information at any time by contacting KZNERA at <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6900070d080b08290213070c1b08470a06471308">[email&#160;protected]</a></strong>.</div>
             </div>
           </div>
         </div>
@@ -1318,16 +1335,20 @@
 <!-- FOOTER -->
 <footer class="site-footer">
   <p>© 2026 KwaZulu-Natal Economic Regulatory Authority (KZNERA) &nbsp;|&nbsp; In partnership with the Department of Economic Development, Tourism and Environmental Affairs (EDTEA)</p>
-  <p style="margin-top:6px;">For enquiries: <a href="mailto:indaba@kznera.co.za">indaba@kznera.co.za</a> &nbsp;|&nbsp; Personal information handled in accordance with POPIA (Act 4 of 2013)</p>
+  <p style="margin-top:6px;">For enquiries: <a href="/cdn-cgi/l/email-protection#fd9493999c9f9cbd968793988f9cd39e92d3879c"><span class="__cf_email__" data-cfemail="b8d1d6dcd9dad9f8d3c2d6ddcad996dbd796c2d9">[email&#160;protected]</span></a> &nbsp;|&nbsp; Personal information handled in accordance with POPIA (Act 4 of 2013)</p>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
   // ================================================================
   // GOOGLE SHEETS CONFIGURATION
   // Paste your Google Apps Script Web App URL below after deployment.
   // Leave as empty string '' to work in offline/localStorage mode.
   // ================================================================
-  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyc22M4XOMXNCJhKyCh83MHR0DP3RqNknE98HVHVR2aj5cWBttzrT5H00yXePG9H-h53w/exec';
+  // ▶▶▶ STEP 1: Paste your Google Apps Script Web App URL here ◀◀◀
+  // After deploying the Apps Script (see admin panel for the full script),
+  // paste the URL between the quotes below, e.g.:
+  // const SHEET_URL = 'https://script.google.com/macros/s/AKfy.../exec';
+  const SHEET_URL = '';
   // ================================================================
 
   let currentStep = 1;
@@ -1491,15 +1512,4 @@
 
     // ── 3. Show success ──
     document.getElementById('panel4').classList.remove('active');
-    document.querySelector('.progress-steps').style.display = 'none';
-    document.getElementById('refNumber').textContent = registration.ref;
-    document.getElementById('successScreen').classList.add('visible');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-</script>
-
-<style>
-  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-</style>
-</body>
-</html>
+    document.querySelector('.progress-s
