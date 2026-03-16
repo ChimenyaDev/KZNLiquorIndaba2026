@@ -1512,4 +1512,15 @@
 
     // ── 3. Show success ──
     document.getElementById('panel4').classList.remove('active');
-    document.querySelector('.progress-s
+    document.querySelector('.progress-steps').style.display = 'none';
+    document.getElementById('refNumber').textContent = registration.ref;
+    document.getElementById('successScreen').classList.add('visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+
+<style>
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</body>
+</html>
