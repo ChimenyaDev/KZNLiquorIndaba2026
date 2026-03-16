@@ -1592,6 +1592,15 @@ const USERS = {
 };
 
 let currentUser = null;
+// ================================================================
+// GOOGLE SHEETS CONFIGURATION
+// Paste your Google Apps Script Web App URL below.
+// Must match the same URL used in registration.html.
+// Leave as '' to use localStorage only (offline/demo mode).
+// ================================================================
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyc22M4XOMXNCJhKyCh83MHR0DP3RqNknE98HVHVR2aj5cWBttzrT5H00yXePG9H-h53w/exec';
+// ================================================================
+
 let currentNotifType = 'email';
 let currentPage = 1;
 const PAGE_SIZE = 15;
@@ -1599,18 +1608,19 @@ let sortField = 'timestamp';
 let sortDir = -1;
 let filteredDelegates = [];
 let notificationLog = JSON.parse(localStorage.getItem('kzn_notif_log') || '[]');
+let isSyncing = false;
 
-// Demo data seed
+// ── Demo data seed (used when no Sheet URL and localStorage is empty) ──
 function seedDemoData() {
   const existing = JSON.parse(localStorage.getItem('kzn_delegates') || '[]');
   if (existing.length > 0) return;
   const demos = [
-    { ref:'IND2026-DEMO1', timestamp: new Date(Date.now()-3600000*5).toISOString(), title:'Mr', firstName:'Sibusiso', lastName:'Dlamini', email:'s.dlamini@demo.co.za', mobile:'0821234567', commPref:'email', orgName:'Dlamini Taverns', licenceNo:'KZN-2022-04512', delegateCategory:'Tavern / Shebeen Operator', district:'eThekwini Metropolitan', jobTitle:'Owner', days:['day1','day2'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['halaal'], status:'Registered', notificationsSent:[] },
-    { ref:'IND2026-DEMO2', timestamp: new Date(Date.now()-3600000*4).toISOString(), title:'Ms', firstName:'Zanele', lastName:'Nkosi', email:'z.nkosi@demo.co.za', mobile:'0731234567', commPref:'sms', orgName:'Nkosi Bottle Store', licenceNo:'KZN-2023-08821', delegateCategory:'Bottle Store / Off-Consumption', district:'uMgungundlovu District', jobTitle:'Proprietor', days:['day1'], galaDinner:'yes', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', notificationsSent:[] },
-    { ref:'IND2026-DEMO3', timestamp: new Date(Date.now()-3600000*3).toISOString(), title:'Dr', firstName:'Ayanda', lastName:'Mthembu', email:'a.mthembu@edtea.gov.za', mobile:'0311234567', commPref:'both', orgName:'EDTEA', licenceNo:'', delegateCategory:'EDTEA Official', district:'eThekwini Metropolitan', jobTitle:'Director', days:['day1','day2'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['vegetarian'], status:'Registered', notificationsSent:[] },
-    { ref:'IND2026-DEMO4', timestamp: new Date(Date.now()-3600000*2).toISOString(), title:'Mr', firstName:'Lungelo', lastName:'Zungu', email:'l.zungu@demo.co.za', mobile:'0841234567', commPref:'sms', orgName:'Zungu Craft Brewing', licenceNo:'KZN-2024-11032', delegateCategory:'Microbrewer / Craft Producer', district:'King Cetshwayo District', jobTitle:'Founder', days:['day1','day2'], galaDinner:'no', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', notificationsSent:[] },
-    { ref:'IND2026-DEMO5', timestamp: new Date(Date.now()-3600000*1).toISOString(), title:'Mrs', firstName:'Priya', lastName:'Govender', email:'p.govender@standard.co.za', mobile:'0611234567', commPref:'email', orgName:'Standard Bank', licenceNo:'', delegateCategory:'Financial Institution / DFI', district:'eThekwini Metropolitan', jobTitle:'Enterprise Development Manager', days:['day1'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['none'], status:'Registered', notificationsSent:[] },
-    { ref:'IND2026-DEMO6', timestamp: new Date(Date.now()-1800000).toISOString(), title:'Mr', firstName:'Thabo', lastName:'Mokoena', email:'t.mokoena@demo.co.za', mobile:'0761234567', commPref:'sms', orgName:'Mokoena Tavern', licenceNo:'KZN-2021-03341', delegateCategory:'Tavern / Shebeen Operator', district:'Harry Gwala District', jobTitle:'Owner', days:['day1'], galaDinner:'yes', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', notificationsSent:[] },
+    { ref:'IND2026-DEMO1', timestamp: new Date(Date.now()-3600000*5).toISOString(), title:'Mr', firstName:'Sibusiso', lastName:'Dlamini', email:'s.dlamini@demo.co.za', mobile:'0821234567', commPref:'email', orgName:'Dlamini Taverns', licenceNo:'KZN-2022-04512', delegateCategory:'Tavern / Shebeen Operator', district:'eThekwini Metropolitan', jobTitle:'Owner', days:['day1','day2'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['halaal'], status:'Registered', synced:true, notificationsSent:[] },
+    { ref:'IND2026-DEMO2', timestamp: new Date(Date.now()-3600000*4).toISOString(), title:'Ms', firstName:'Zanele', lastName:'Nkosi', email:'z.nkosi@demo.co.za', mobile:'0731234567', commPref:'sms', orgName:'Nkosi Bottle Store', licenceNo:'KZN-2023-08821', delegateCategory:'Bottle Store / Off-Consumption', district:'uMgungundlovu District', jobTitle:'Proprietor', days:['day1'], galaDinner:'yes', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', synced:true, notificationsSent:[] },
+    { ref:'IND2026-DEMO3', timestamp: new Date(Date.now()-3600000*3).toISOString(), title:'Dr', firstName:'Ayanda', lastName:'Mthembu', email:'a.mthembu@edtea.gov.za', mobile:'0311234567', commPref:'both', orgName:'EDTEA', licenceNo:'', delegateCategory:'EDTEA Official', district:'eThekwini Metropolitan', jobTitle:'Director', days:['day1','day2'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['vegetarian'], status:'Registered', synced:true, notificationsSent:[] },
+    { ref:'IND2026-DEMO4', timestamp: new Date(Date.now()-3600000*2).toISOString(), title:'Mr', firstName:'Lungelo', lastName:'Zungu', email:'l.zungu@demo.co.za', mobile:'0841234567', commPref:'sms', orgName:'Zungu Craft Brewing', licenceNo:'KZN-2024-11032', delegateCategory:'Microbrewer / Craft Producer', district:'King Cetshwayo District', jobTitle:'Founder', days:['day1','day2'], galaDinner:'no', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', synced:true, notificationsSent:[] },
+    { ref:'IND2026-DEMO5', timestamp: new Date(Date.now()-3600000*1).toISOString(), title:'Mrs', firstName:'Priya', lastName:'Govender', email:'p.govender@standard.co.za', mobile:'0611234567', commPref:'email', orgName:'Standard Bank', licenceNo:'', delegateCategory:'Financial Institution / DFI', district:'eThekwini Metropolitan', jobTitle:'Enterprise Development Manager', days:['day1'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['none'], status:'Registered', synced:true, notificationsSent:[] },
+    { ref:'IND2026-DEMO6', timestamp: new Date(Date.now()-1800000).toISOString(), title:'Mr', firstName:'Thabo', lastName:'Mokoena', email:'t.mokoena@demo.co.za', mobile:'0761234567', commPref:'sms', orgName:'Mokoena Tavern', licenceNo:'KZN-2021-03341', delegateCategory:'Tavern / Shebeen Operator', district:'Harry Gwala District', jobTitle:'Owner', days:['day1'], galaDinner:'yes', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', synced:true, notificationsSent:[] },
   ];
   localStorage.setItem('kzn_delegates', JSON.stringify(demos));
 }
@@ -1623,12 +1633,111 @@ function saveDelegates(data) {
   localStorage.setItem('kzn_delegates', JSON.stringify(data));
 }
 
+// ── Merge Sheet rows into localStorage (Sheet is master, local adds notificationsSent) ──
+function mergeSheetData(sheetRows) {
+  const local = getDelegates();
+  const localMap = {};
+  local.forEach(d => { localMap[d.ref] = d; });
+
+  const merged = sheetRows.map(row => {
+    const existing = localMap[row.ref] || {};
+    return {
+      ...row,
+      // Preserve notification history which only lives locally
+      notificationsSent: existing.notificationsSent || [],
+      synced: true
+    };
+  });
+
+  // Also keep any local records not yet in the sheet (just submitted, pending sync)
+  const sheetRefs = new Set(sheetRows.map(r => r.ref));
+  local.filter(d => !sheetRefs.has(d.ref)).forEach(d => merged.push(d));
+
+  saveDelegates(merged);
+  return merged;
+}
+
+// ── Pull from Google Sheets ──
+async function syncFromSheet() {
+  if (!SHEET_URL) {
+    showToast('No Google Sheets URL configured yet. Add SHEET_URL to admin.html.', true);
+    return;
+  }
+  if (isSyncing) return;
+  isSyncing = true;
+
+  const btn = document.getElementById('syncBtn');
+  const icon = document.getElementById('syncIcon');
+  btn.disabled = true;
+  icon.style.animation = 'spin 1s linear infinite';
+
+  try {
+    const res = await fetch(SHEET_URL + '?action=get', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+
+    // Normalise rows — Sheet returns flat objects with header-named keys
+    const normalised = rows.map(row => ({
+      ref:              row['Reference']       || row.ref || '',
+      timestamp:        row['Timestamp']       || row.timestamp || new Date().toISOString(),
+      title:            row['Title']           || row.title || '',
+      firstName:        row['FirstName']       || row.firstName || '',
+      lastName:         row['LastName']        || row.lastName || '',
+      idNumber:         row['IDNumber']        || row.idNumber || '',
+      email:            row['Email']           || row.email || '',
+      mobile:           row['Mobile']          || row.mobile || '',
+      commPref:         row['CommPref']        || row.commPref || '',
+      orgName:          row['OrgName']         || row.orgName || '',
+      licenceNo:        row['LicenceNo']       || row.licenceNo || '',
+      delegateCategory: row['Category']        || row.delegateCategory || '',
+      district:         row['District']        || row.district || '',
+      address:          row['Address']         || row.address || '',
+      jobTitle:         row['JobTitle']        || row.jobTitle || '',
+      days:             (row['Days']           || row.days || '').toString().split('+').filter(Boolean),
+      galaDinner:       row['GalaDinner']      || row.galaDinner || '',
+      shuttle:          row['Shuttle']         || row.shuttle || '',
+      accommodation:    row['Accommodation']   || row.accommodation || '',
+      dietary:          (row['Dietary']        || row.dietary || '').toString().split('+').filter(Boolean),
+      accessibility:    row['Accessibility']   || row.accessibility || '',
+      heardAbout:       row['HeardAbout']      || row.heardAbout || '',
+      topics:           row['Topics']          || row.topics || '',
+      status:           row['Status']          || row.status || 'Registered',
+    }));
+
+    mergeSheetData(normalised);
+    refreshAll();
+    showToast(`Synced ${normalised.length} records from Google Sheets`);
+  } catch (err) {
+    showToast('Sync failed: ' + err.message + '. Check your SHEET_URL.', true);
+    console.error('Sheet sync error:', err);
+  } finally {
+    isSyncing = false;
+    btn.disabled = false;
+    icon.style.animation = '';
+  }
+}
+
+// ── Push a single notification log entry to Google Sheets ──
+async function pushNotifLogToSheet(entry) {
+  if (!SHEET_URL) return;
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'log', ...entry })
+    });
+  } catch (err) {
+    console.warn('Could not push notification log to sheet:', err);
+  }
+}
+
 // ===== LOGIN =====
-function doLogin() {
+async function doLogin() {
   const user = document.getElementById('loginUser').value.trim().toLowerCase();
   const pass = document.getElementById('loginPass').value;
   const err = document.getElementById('loginError');
-  
+
   if (USERS[user] && USERS[user].pass === pass) {
     currentUser = { username: user, ...USERS[user] };
     err.style.display = 'none';
@@ -1636,7 +1745,13 @@ function doLogin() {
     document.getElementById('adminApp').style.display = 'block';
     document.getElementById('userNameSidebar').textContent = currentUser.name;
     document.getElementById('userAvatarSidebar').textContent = currentUser.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
-    seedDemoData();
+
+    // If Sheet URL is configured, sync on login; otherwise seed demo data
+    if (SHEET_URL) {
+      await syncFromSheet();
+    } else {
+      seedDemoData();
+    }
     refreshAll();
   } else {
     err.style.display = 'flex';
@@ -2010,6 +2125,7 @@ function sendNotification() {
   const entry = { date: new Date().toISOString(), type: currentNotifType, label, subject, message, recipients: recipients.length, group, sentBy: currentUser?.name || 'Admin' };
   notificationLog.unshift(entry);
   localStorage.setItem('kzn_notif_log', JSON.stringify(notificationLog));
+  pushNotifLogToSheet(entry); // async, non-blocking
   
   // Update each delegate's notification history
   const notifEntry = { type: currentNotifType, label, date: new Date().toISOString() };
@@ -2157,9 +2273,18 @@ document.getElementById('delegateModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
-// Auto-refresh every 30s when logged in
-setInterval(() => { if (currentUser) refreshAll(); }, 30000);
+// Auto-refresh every 60s when logged in — syncs from Sheet if configured
+setInterval(() => {
+  if (!currentUser) return;
+  if (SHEET_URL) syncFromSheet();
+  else refreshAll();
+}, 60000);
 </script>
+
+<style>
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+
 
 </body>
 </html>
