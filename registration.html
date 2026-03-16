@@ -1322,22 +1322,27 @@
 </footer>
 
 <script>
+  // ================================================================
+  // GOOGLE SHEETS CONFIGURATION
+  // Paste your Google Apps Script Web App URL below after deployment.
+  // Leave as empty string '' to work in offline/localStorage mode.
+  // ================================================================
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyc22M4XOMXNCJhKyCh83MHR0DP3RqNknE98HVHVR2aj5cWBttzrT5H00yXePG9H-h53w/exec';
+  // ================================================================
+
   let currentStep = 1;
   const totalSteps = 4;
 
   function goToStep(step) {
     if (step > currentStep && !validateStep(currentStep)) return;
-    
     document.getElementById('panel' + currentStep).classList.remove('active');
     document.getElementById('panel' + step).classList.add('active');
-    
     const steps = document.querySelectorAll('.step');
     steps.forEach((s, i) => {
       s.classList.remove('active', 'completed');
       if (i + 1 < step) s.classList.add('completed');
       if (i + 1 === step) s.classList.add('active');
     });
-    
     currentStep = step;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1388,24 +1393,18 @@
 
   function toggleCheckbox(label) {
     const cb = label.querySelector('input');
-    setTimeout(() => {
-      label.classList.toggle('selected', cb.checked);
-    }, 0);
+    setTimeout(() => { label.classList.toggle('selected', cb.checked); }, 0);
   }
 
   function toggleTag(label) {
     const cb = label.querySelector('input');
-    setTimeout(() => {
-      label.classList.toggle('selected', cb.checked);
-    }, 0);
+    setTimeout(() => { label.classList.toggle('selected', cb.checked); }, 0);
   }
 
   function toggleConsent(id, labelId) {
     const cb = document.getElementById(id);
     const lbl = document.getElementById(labelId);
-    setTimeout(() => {
-      lbl.classList.toggle('checked', cb.checked);
-    }, 0);
+    setTimeout(() => { lbl.classList.toggle('checked', cb.checked); }, 0);
   }
 
   function generateRef() {
@@ -1415,13 +1414,12 @@
     return ref;
   }
 
-  function submitRegistration() {
+  async function submitRegistration() {
     if (!validateStep(4)) return;
-    
+
     const c1 = document.getElementById('consent1').checked;
     const c2 = document.getElementById('consent2').checked;
     const c3 = document.getElementById('consent3').checked;
-    
     if (!c1 || !c2 || !c3) {
       alert('Please accept all three consent declarations to complete your registration.');
       return;
@@ -1431,50 +1429,72 @@
     btn.disabled = true;
     btn.innerHTML = `
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-      Processing...
+      Submitting...
     `;
 
-    // Collect all data
     const registration = {
-      ref: generateRef(),
-      timestamp: new Date().toISOString(),
-      title: document.getElementById('title').value,
-      firstName: document.getElementById('firstName').value,
-      lastName: document.getElementById('lastName').value,
-      idNumber: document.getElementById('idNumber').value,
-      email: document.getElementById('email').value,
-      mobile: document.getElementById('mobile').value,
-      commPref: document.querySelector('input[name="commPref"]:checked')?.value || '',
-      orgName: document.getElementById('orgName').value,
-      licenceNo: document.getElementById('licenceNo').value,
+      ref:              generateRef(),
+      timestamp:        new Date().toISOString(),
+      title:            document.getElementById('title').value,
+      firstName:        document.getElementById('firstName').value,
+      lastName:         document.getElementById('lastName').value,
+      idNumber:         document.getElementById('idNumber').value,
+      email:            document.getElementById('email').value,
+      mobile:           document.getElementById('mobile').value,
+      commPref:         document.querySelector('input[name="commPref"]:checked')?.value || '',
+      orgName:          document.getElementById('orgName').value,
+      licenceNo:        document.getElementById('licenceNo').value,
       delegateCategory: document.getElementById('delegateCategory').value,
-      district: document.getElementById('district').value,
-      address: document.getElementById('address').value,
-      jobTitle: document.getElementById('jobTitle').value,
-      days: Array.from(document.querySelectorAll('input[name="days"]:checked')).map(r => r.value),
-      galaDinner: document.querySelector('input[name="galaDinner"]:checked')?.value || '',
-      shuttle: document.querySelector('input[name="shuttle"]:checked')?.value || '',
-      accommodation: document.querySelector('input[name="accommodation"]:checked')?.value || '',
-      dietary: Array.from(document.querySelectorAll('input[name="dietary"]:checked')).map(c => c.value),
-      accessibility: document.getElementById('accessibility').value,
-      heardAbout: document.getElementById('heardAbout').value,
-      topics: document.getElementById('topics').value,
-      status: 'Registered',
+      district:         document.getElementById('district').value,
+      address:          document.getElementById('address').value,
+      jobTitle:         document.getElementById('jobTitle').value,
+      days:             Array.from(document.querySelectorAll('input[name="days"]:checked')).map(r => r.value),
+      galaDinner:       document.querySelector('input[name="galaDinner"]:checked')?.value || '',
+      shuttle:          document.querySelector('input[name="shuttle"]:checked')?.value || '',
+      accommodation:    document.querySelector('input[name="accommodation"]:checked')?.value || '',
+      dietary:          Array.from(document.querySelectorAll('input[name="dietary"]:checked')).map(c => c.value),
+      accessibility:    document.getElementById('accessibility').value,
+      heardAbout:       document.getElementById('heardAbout').value,
+      topics:           document.getElementById('topics').value,
+      status:           'Registered',
       notificationsSent: []
     };
 
-    // Save to localStorage for admin demo
+    // ── 1. Always save to localStorage as immediate backup ──
     const existing = JSON.parse(localStorage.getItem('kzn_delegates') || '[]');
     existing.push(registration);
     localStorage.setItem('kzn_delegates', JSON.stringify(existing));
 
-    setTimeout(() => {
-      document.getElementById('panel4').classList.remove('active');
-      document.querySelector('.progress-steps').style.display = 'none';
-      document.getElementById('refNumber').textContent = registration.ref;
-      document.getElementById('successScreen').classList.add('visible');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 1200);
+    // ── 2. Send to Google Sheets if URL is configured ──
+    if (SHEET_URL) {
+      try {
+        btn.innerHTML = `
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          Saving to database...
+        `;
+        // Apps Script requires no-cors mode; response confirmation comes via localStorage flag
+        await fetch(SHEET_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(registration)
+        });
+        // Mark this record as synced
+        const all = JSON.parse(localStorage.getItem('kzn_delegates') || '[]');
+        const idx = all.findIndex(d => d.ref === registration.ref);
+        if (idx > -1) { all[idx].synced = true; localStorage.setItem('kzn_delegates', JSON.stringify(all)); }
+      } catch (err) {
+        // Submission still recorded in localStorage; admin can re-sync later
+        console.warn('Google Sheets sync failed, saved locally:', err);
+      }
+    }
+
+    // ── 3. Show success ──
+    document.getElementById('panel4').classList.remove('active');
+    document.querySelector('.progress-steps').style.display = 'none';
+    document.getElementById('refNumber').textContent = registration.ref;
+    document.getElementById('successScreen').classList.add('visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 </script>
 
