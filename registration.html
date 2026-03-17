@@ -766,6 +766,20 @@
   Committee administrators: <a href="admin.html">Access Admin Dashboard →</a>
 </div>
 
+<script>
+  // ================================================================
+  // GOOGLE SHEETS CONFIGURATION
+  // Paste your Google Apps Script Web App URL below after deployment.
+  // Leave as empty string '' to work in offline/localStorage mode.
+  // ================================================================
+  // ▶▶▶ STEP 1: Paste your Google Apps Script Web App URL here ◀◀◀
+  // After deploying the Apps Script (see admin panel for the full script),
+  // paste the URL between the quotes below, e.g.:
+  // const SHEET_URL = 'https://script.google.com/macros/s/AKfy.../exec';
+  // ================================================================
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyc22M4XOMXNCJhKyCh83MHR0DP3RqNknE98HVHVR2aj5cWBttzrT5H00yXePG9H-h53w/exec';
+</script>
+
 <!-- GOOGLE SHEETS SETUP BANNER (hidden once SHEET_URL is configured) -->
 <div id="setupBanner" style="display:none;background:#fff3cd;border-bottom:2px solid #f4a020;padding:12px 24px;font-family:'DM Sans',sans-serif;font-size:0.83rem;color:#664d00;">
   <strong>⚙️ Setup Required:</strong> This registration form is running in <strong>offline mode</strong> — submissions are saved locally only.
@@ -1339,17 +1353,6 @@
 </footer>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-  // ================================================================
-  // GOOGLE SHEETS CONFIGURATION
-  // Paste your Google Apps Script Web App URL below after deployment.
-  // Leave as empty string '' to work in offline/localStorage mode.
-  // ================================================================
-  // ▶▶▶ STEP 1: Paste your Google Apps Script Web App URL here ◀◀◀
-  // After deploying the Apps Script (see admin panel for the full script),
-  // paste the URL between the quotes below, e.g.:
-  // const SHEET_URL = 'https://script.google.com/macros/s/AKfy.../exec';
-  // ================================================================
-  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyc22M4XOMXNCJhKyCh83MHR0DP3RqNknE98HVHVR2aj5cWBttzrT5H00yXePG9H-h53w/exec';
  
   let currentStep = 1;
   const totalSteps = 4;
