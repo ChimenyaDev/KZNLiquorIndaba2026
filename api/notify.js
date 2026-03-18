@@ -125,7 +125,20 @@ export default async function handler(req, res) {
 
     // Send SMS
     if (useSms && mobile && validatePhone(mobile)) {
-      const smsText = personalisedMessage.replace(/<[^>]*>/g, '').substring(0, 918);
+      // Shorten message for SMS - keep only essential info
+      let smsBody = personalisedMessage
+        .replace(/<[^>]*>/g, '')  // Remove HTML tags
+        .replace(/\s+/g, ' ')      // Collapse whitespace
+        .trim();
+
+      // If too long, keep first sentence + ref number
+      if (smsBody.length > 160) {
+        const refText = ref ? ` Ref: ${ref}` : '';
+        const maxLen = 160 - refText.length - 3; // Reserve space for "..."
+        smsBody = smsBody.substring(0, maxLen).trim() + '...' + refText;
+      }
+
+      const smsText = smsBody;
       const smsResult = await sendUmsgSms(mobile, smsText);
 
       logCommunication({
