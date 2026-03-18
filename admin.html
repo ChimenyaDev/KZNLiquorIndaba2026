@@ -2117,6 +2117,7 @@ const NOTIF_TEMPLATES = {
 };
 
 let pendingAttachments = [];  // [{ filename, content (base64), mime, size }]
+let currentNotifType = 'email'; // tracks the active channel: 'email' | 'sms' | 'both'
 let currentPage = 1;
 const PAGE_SIZE = 15;
 let sortField = 'timestamp';
