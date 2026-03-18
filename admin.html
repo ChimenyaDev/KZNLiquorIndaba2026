@@ -2912,93 +2912,7 @@ function renderCheckinTable() {
   }
 }
 
-/*function doCheckin(ref) {
-  const now = new Date().toISOString();
-  const checkins = getCheckinData();
-  const key = currentCheckinDay + '_' + ref;
-  checkins[key] = {
-    time: now,
-    by: currentUser?.name || 'Registration Desk',
-    day: currentCheckinDay
-  };
-  saveCheckinData(checkins);
-  
-  // Also update the delegate record
-  const delegates = getDelegates();
-  const updated = delegates.map(d => {
-    if (d.ref === ref) {
-      const checkedDays = d.checkedInDays || {};
-      checkedDays[currentCheckinDay] = now;
-      return { ...d, checkedInDays };
-    }
-    return d;
-  });
-  saveDelegates(updated);
 
-  // Immediately update the clicked row in the DOM for instant feedback
-  const timeStr = new Date(now).toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'});
-  const rows = document.querySelectorAll('#checkinTableBody tr');
-  rows.forEach(row => {
-    const btn = row.querySelector('.do-checkin');
-    if (btn && btn.getAttribute('onclick') === `doCheckin('${ref}')`) {
-      row.classList.add('checkin-row-checked');
-      const statusCell = row.cells[5];
-      if (statusCell) statusCell.innerHTML = `<span class="badge badge-checked-in">✓ Checked In</span>`;
-      const timeCell = row.cells[6];
-      if (timeCell) timeCell.innerHTML = `<div style="font-size:0.83rem;font-weight:600;color:var(--green);">${timeStr}</div><div class="checkin-time">By ${currentUser?.name || 'Registration Desk'}</div>`;
-      const actionCell = row.cells[7];
-      if (actionCell) actionCell.innerHTML = `<button class="checkin-btn undo-checkin" onclick="undoCheckin('${ref}')">✕ Undo</button>`;
-    }
-  });
-
-  // Update the stat counters immediately
-  const ciChecked = parseInt(document.getElementById('ciStatChecked').textContent || '0') + 1;
-  const ciAbsent = parseInt(document.getElementById('ciStatAbsent').textContent || '0') - 1;
-  document.getElementById('ciStatChecked').textContent = ciChecked;
-  document.getElementById('ciStatAbsent').textContent = Math.max(0, ciAbsent);
-
-  // Update tab stats
-  ['day1','day2'].forEach(d => {
-    const exp = getDelegates().filter(x => (x.days||[]).includes(d)).length;
-    const ch = Object.keys(getCheckinData()).filter(k => k.startsWith(d + '_')).length;
-    const el = document.getElementById('checkinTabStats-' + d);
-    if (el) el.textContent = `${ch}/${exp} checked in`;
-  });
-
-  // Update sidebar badge
-  const badge = document.getElementById('checkinBadge');
-  if (badge) {
-    const total = Object.keys(checkins).length;
-    badge.textContent = total;
-    badge.style.display = total > 0 ? '' : 'none';
-  }
-
-  showToast('✓ Delegate checked in successfully');
-
-  // Full re-render in the background to keep report section in sync
-  renderCheckinReport();
-}
-
-function undoCheckin(ref) {
-  if (!confirm('Remove check-in for this delegate?')) return;
-  const checkins = getCheckinData();
-  delete checkins[currentCheckinDay + '_' + ref];
-  saveCheckinData(checkins);
-  
-  const delegates = getDelegates();
-  const updated = delegates.map(d => {
-    if (d.ref === ref) {
-      const checkedDays = d.checkedInDays || {};
-      delete checkedDays[currentCheckinDay];
-      return { ...d, checkedInDays };
-    }
-    return d;
-  });
-  saveDelegates(updated);
-  
-  showToast('Check-in removed');
-  renderCheckinView();
-}*/
 
 // ── Internal helper: show the confirmation modal ──────────────
 function _showCheckinConfirm({ mode, ref, delegateName, onConfirm }) {
@@ -3239,7 +3153,44 @@ setInterval(() => {
 
 <style>
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  #checkinConfirmModal {
+    position: fixed; inset: 0;
+    background: rgba(15,32,64,0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  #checkinConfirmModal.visible { opacity: 1; pointer-events: all; }
+  .ci-modal-card {
+    background: #fff; border-radius: 18px; padding: 36px 32px 28px;
+    width: 100%; max-width: 420px;
+    box-shadow: 0 20px 60px rgba(15,32,64,0.28);
+    transform: translateY(12px) scale(0.97);
+    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    text-align: center;
+  }
+  #checkinConfirmModal.visible .ci-modal-card { transform: translateY(0) scale(1); }
+  .ci-modal-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 18px; font-size: 1.5rem;
+  }
+  .ci-modal-icon.checkin { background: rgba(45,164,78,0.12); color: #2da44e; }
+  .ci-modal-icon.undo    { background: rgba(229,62,62,0.10);  color: #e53e3e; }
+  .ci-modal-title { font-family: 'Playfair Display',serif; font-size: 1.15rem; font-weight: 900; color: #1a3560; margin-bottom: 8px; }
+  .ci-modal-delegate { font-size: 0.95rem; font-weight: 700; color: #1a3560; background: #f0f3fa; border-radius: 8px; padding: 10px 16px; margin: 14px 0; display: block; }
+  .ci-modal-subtitle { font-size: 0.85rem; color: #8896b0; margin-bottom: 24px; line-height: 1.5; }
+  .ci-modal-actions { display: flex; gap: 10px; }
+  .ci-btn { flex: 1; padding: 12px 18px; border-radius: 10px; font-family: 'DM Sans',sans-serif; font-size: 0.92rem; font-weight: 700; cursor: pointer; border: none; transition: all 0.18s; }
+  .ci-btn-cancel { background: #f0f3fa; color: #8896b0; }
+  .ci-btn-cancel:hover { background: #e2e8f4; color: #1a3560; }
+  .ci-btn-confirm-checkin { background: #2da44e; color: #fff; }
+  .ci-btn-confirm-checkin:hover { background: #248c42; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(45,164,78,0.35); }
+  .ci-btn-confirm-undo { background: #e53e3e; color: #fff; }
+  .ci-btn-confirm-undo:hover { background: #c53030; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(229,62,62,0.3); }
 </style>
+
 
 <div id="checkinConfirmModal">
   <div class="ci-modal-card">
@@ -3253,6 +3204,6 @@ setInterval(() => {
     </div>
   </div>
 </div>
- 
+
 </body>
 </html>
