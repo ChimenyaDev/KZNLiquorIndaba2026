@@ -1,0 +1,20 @@
+# Protect configuration and data files
+<Files "config.php">
+    Require all denied
+</Files>
+
+<Files "helpers.php">
+    Require all denied
+</Files>
+
+<FilesMatch "\.json$">
+    Require all denied
+</FilesMatch>
+
+# Prevent directory listing
+Options -Indexes
+
+# Only allow PHP and OPTIONS requests through
+<LimitExcept POST GET OPTIONS>
+    Require all denied
+</LimitExcept>

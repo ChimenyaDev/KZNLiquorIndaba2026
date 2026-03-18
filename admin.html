@@ -1669,45 +1669,23 @@ tr:hover td { background: rgba(26,53,96,0.02); }
         <!-- NOTIFICATIONS VIEW -->
         <div class="view" id="view-notifications">
 
-          <!-- NOTIFICATION SETUP GUIDE -->
-          <div style="background:#fffbeb;border:1.5px solid #f4a020;border-radius:14px;padding:20px 24px;margin-bottom:20px;">
-            <div style="display:flex;align-items:flex-start;gap:14px;">
-              <div style="flex-shrink:0;width:38px;height:38px;background:#f4a020;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                <svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              </div>
-              <div style="flex:1;">
-                <div style="font-weight:700;color:#7a4f00;font-size:0.9rem;margin-bottom:6px;">⚠ Notifications require an email/SMS backend — see setup guide below</div>
-                <div style="font-size:0.82rem;color:#7a4f00;line-height:1.7;">
-                  Currently this system <strong>logs notifications locally</strong> but does not actually send emails or SMS messages. To make sending work, connect one of the services below to your Google Apps Script backend. <button onclick="toggleNotifGuide()" style="background:none;border:none;color:#b45309;font-weight:700;cursor:pointer;font-size:0.82rem;text-decoration:underline;">Show setup instructions ▼</button>
-                </div>
-              </div>
+          <!-- NOTIFICATION BACKEND STATUS -->
+          <div id="notifBackendStatus" style="background:#ecfdf5;border:1.5px solid #2da44e;border-radius:14px;padding:16px 24px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
+            <div style="flex-shrink:0;width:34px;height:34px;background:#2da44e;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <div id="notifGuide" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #f4a020;">
-              <div style="font-size:0.85rem;color:#7a4f00;line-height:1.8;">
-                <strong>Option 1 — Email via Gmail (free, simplest):</strong><br>
-                In your Google Apps Script (the same script connected via <code>SHEET_URL</code>), add a <code>sendEmail</code> action using <code>GmailApp.sendEmail(to, subject, body)</code>. This works immediately with no third-party account needed — Gmail quota is 100 emails/day on free accounts, 1 500/day on Google Workspace.
-                <br><br>
-                <strong>Option 2 — Email via SendGrid (recommended for bulk):</strong><br>
-                Sign up at <a href="https://sendgrid.com" target="_blank" style="color:#b45309;">sendgrid.com</a> (free tier: 100 emails/day). Get an API key → add it to your Apps Script as a Script Property → call <code>UrlFetchApp.fetch('https://api.sendgrid.com/v3/mail/send', options)</code> from a <code>sendEmail</code> action. Supports HTML email templates.
-                <br><br>
-                <strong>Option 3 — SMS via Twilio (for South Africa):</strong><br>
-                Sign up at <a href="https://twilio.com" target="_blank" style="color:#b45309;">twilio.com</a> → obtain Account SID, Auth Token, and a ZA virtual number (or use Twilio Alphanumeric Sender). Store credentials as Script Properties in Apps Script → call Twilio's REST API using <code>UrlFetchApp.fetch</code> from a <code>sendSMS</code> action.
-                <br><br>
-                <strong>Option 4 — SMS via BulkSMS.com (SA-based, supports local numbers):</strong><br>
-                Register at <a href="https://www.bulksms.com" target="_blank" style="color:#b45309;">bulksms.com</a>. Use their REST API with your API token via <code>UrlFetchApp.fetch('https://api.bulksms.com/v1/messages', options)</code>. Affordable for ZA numbers, no monthly fee, pay per SMS.
-                <br><br>
-                <strong>How to wire this up in your Apps Script:</strong><br>
-                In your existing <code>doPost(e)</code> handler, add a branch:<br>
-                <code style="display:block;background:#fef3c7;padding:8px 12px;border-radius:6px;margin-top:6px;font-size:0.8rem;">if (data.action === 'notify') { /* call GmailApp or UrlFetchApp here */ }</code>
-                Then in this admin page's <code>sendNotification()</code> function, add a <code>fetch(SHEET_URL, { method:'POST', body: JSON.stringify({ action:'notify', type, recipients, subject, message }) })</code> call after the local log is saved.
-              </div>
+            <div style="flex:1;font-size:0.85rem;color:#166534;">
+              <strong>Email &amp; SMS backend connected</strong> — Notifications will be delivered via the PHP API (UMSG SMS gateway + SMTP email). 
+              Sent messages are logged in <code>api/data/comm_log.json</code>. 
+              If delivery fails, the error is recorded in the notification log below.
             </div>
           </div>
+
           <div class="notification-compose">
             <div class="nc-header">
               <div>
                 <h3>Compose Notification</h3>
-                <p>Send email or SMS notifications to registered delegates</p>
+                <p>Send email or SMS notifications to registered delegates. Use {firstName}, {referenceNumber}, {eventDate}, {venue} as template variables.</p>
               </div>
             </div>
             <div class="nc-body">
@@ -1733,20 +1711,16 @@ tr:hover td { background: rgba(26,53,96,0.02); }
               </div>
 
               <div class="nc-field">
-                <label class="nc-label">Notification Type</label>
-                <select class="nc-input" id="notifTypeLabel">
-                  <option value="">Select notification type</option>
-                  <option>Invitation</option>
-                  <option>Save the Date</option>
+                <label class="nc-label">Notification Template</label>
+                <select class="nc-input" id="notifTypeLabel" onchange="applyTemplate(this.value)">
+                  <option value="">— Select a template or compose custom —</option>
                   <option>Registration Confirmation</option>
                   <option>Joining Instructions</option>
-                  <option>Digital Information Pack</option>
                   <option>Event Reminder (1 week before)</option>
                   <option>Event Reminder (Day before)</option>
                   <option>Programme Update</option>
-                  <option>Transport Arrangements</option>
+                  <option>Post-Event Thank You</option>
                   <option>Post-Event Survey</option>
-                  <option>Thank You</option>
                   <option>Custom Message</option>
                 </select>
               </div>
@@ -1757,8 +1731,25 @@ tr:hover td { background: rgba(26,53,96,0.02); }
               </div>
 
               <div class="nc-field">
-                <label class="nc-label">Message</label>
-                <textarea class="nc-textarea" id="notifMessage" placeholder="Type your message here...&#10;&#10;Tip: You can use [DELEGATE_NAME], [REF_NUMBER], and [EVENT_DATE] as placeholders."></textarea>
+                <label class="nc-label" style="display:flex;justify-content:space-between;">
+                  <span>Message</span>
+                  <span id="smsCharCount" style="font-size:0.78rem;color:var(--mid-gray);display:none;">0 / 160 chars (1 SMS)</span>
+                </label>
+                <textarea class="nc-textarea" id="notifMessage" oninput="updateSmsCount()" placeholder="Type your message here...&#10;&#10;Available variables: {firstName}, {lastName}, {fullName}, {referenceNumber}, {eventDate}, {venue}"></textarea>
+              </div>
+
+              <!-- File attachments (email only) -->
+              <div class="nc-field" id="attachmentsField">
+                <label class="nc-label">Attachments (Email only)</label>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <label style="cursor:pointer;background:var(--light-gray);border:1.5px dashed var(--border);border-radius:8px;padding:8px 16px;font-size:0.83rem;color:var(--navy);display:flex;align-items:center;gap:6px;">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    Add File
+                    <input type="file" id="attachmentInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.jpg,.jpeg,.png" style="display:none" onchange="handleAttachmentSelect(event)">
+                  </label>
+                  <div id="attachmentList" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+                </div>
+                <div style="font-size:0.75rem;color:var(--mid-gray);margin-top:4px;">Allowed: PDF, Word, Excel, CSV, TXT, JPG, PNG</div>
               </div>
 
               <div class="nc-field">
@@ -1776,11 +1767,28 @@ tr:hover td { background: rgba(26,53,96,0.02); }
 
               <div class="nc-send-row">
                 <div class="nc-count">Sending to: <strong id="recipientCountDisplay">0</strong> delegates</div>
-                <button class="btn btn-primary" onclick="sendNotification()">
-                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Send Notification
-                </button>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn" style="background:var(--light-gray);color:var(--navy);" onclick="previewNotification()">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Preview
+                  </button>
+                  <button class="btn btn-primary" onclick="sendNotification()" id="sendNotifBtn">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Send Notification
+                  </button>
+                </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Preview modal -->
+          <div id="notifPreviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center;">
+            <div style="background:#fff;border-radius:14px;max-width:600px;width:90%;max-height:80vh;overflow:auto;padding:28px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <strong style="font-size:1rem;color:var(--navy);">Message Preview</strong>
+                <button onclick="document.getElementById('notifPreviewModal').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+              </div>
+              <div id="notifPreviewContent" style="white-space:pre-wrap;font-size:0.88rem;line-height:1.7;color:#2d3748;"></div>
             </div>
           </div>
         </div>
@@ -2068,7 +2076,47 @@ let currentUser = null;
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyc22M4XOMXNCJhKyCh83MHR0DP3RqNknE98HVHVR2aj5cWBttzrT5H00yXePG9H-h53w/exec';
 // ================================================================
 
-let currentNotifType = 'email';
+// ── Notification API (PHP backend) ────────────────────────────────────────────
+// Set to the path/URL where api/notify.php is served.
+const NOTIFY_API_URL = 'api/notify.php';
+
+// ── Predefined notification templates ────────────────────────────────────────
+const NOTIF_TEMPLATES = {
+  'Registration Confirmation': {
+    subject: 'KZN Liquor Indaba 2026 – Registration Confirmed ({referenceNumber})',
+    message: `Dear {firstName},\n\nYour registration for the KZN Liquor Indaba 2026 has been confirmed.\n\nReference Number: {referenceNumber}\nEvent Dates: {eventDate}\nVenue: {venue}\n\nPlease keep this reference number for your records. Full joining instructions will be sent closer to the event.\n\nFor enquiries: indaba@kznera.co.za\n\nKind regards,\nKZN Liquor Indaba 2026 Team`,
+  },
+  'Event Reminder (1 week before)': {
+    subject: 'KZN Liquor Indaba 2026 – Reminder: One Week to Go!',
+    message: `Dear {firstName},\n\nThis is a reminder that the KZN Liquor Indaba 2026 is just ONE WEEK away!\n\nEvent Dates: {eventDate}\nVenue: {venue}\n\nPlease ensure you have your reference number ({referenceNumber}) ready for registration at the venue.\n\nWe look forward to seeing you there.\n\nKZN Liquor Indaba 2026 Team`,
+  },
+  'Event Reminder (Day before)': {
+    subject: 'KZN Liquor Indaba 2026 – See You Tomorrow!',
+    message: `Dear {firstName},\n\nThe KZN Liquor Indaba 2026 is TOMORROW!\n\nEvent Dates: {eventDate}\nVenue: {venue}\nReference Number: {referenceNumber}\n\nRegistration opens at 07:30. Please bring a valid ID and your reference number.\n\nKZN Liquor Indaba 2026 Team`,
+  },
+  'Joining Instructions': {
+    subject: 'KZN Liquor Indaba 2026 – Joining Instructions',
+    message: `Dear {firstName},\n\nPlease find the joining instructions for the KZN Liquor Indaba 2026 below.\n\nEvent Dates: {eventDate}\nVenue: {venue}\nReference Number: {referenceNumber}\n\nRegistration Desk opens at 07:30.\nPlease bring a valid ID document and quote your reference number upon arrival.\n\nFor further information please contact indaba@kznera.co.za\n\nKZN Liquor Indaba 2026 Team`,
+  },
+  'Programme Update': {
+    subject: 'KZN Liquor Indaba 2026 – Programme Update',
+    message: `Dear {firstName},\n\nWe wish to inform you of an update to the KZN Liquor Indaba 2026 programme.\n\nPlease review the updated programme attached to this message.\n\nYour reference number remains: {referenceNumber}\n\nApologies for any inconvenience. For questions please contact indaba@kznera.co.za\n\nKZN Liquor Indaba 2026 Team`,
+  },
+  'Post-Event Thank You': {
+    subject: 'Thank You for Attending the KZN Liquor Indaba 2026',
+    message: `Dear {firstName},\n\nThank you for attending the KZN Liquor Indaba 2026!\n\nWe hope you found the event valuable and look forward to continued engagement with the KwaZulu-Natal liquor regulatory sector.\n\nPlease look out for our follow-up communications with event highlights and resolutions.\n\nKind regards,\nKZN Liquor Indaba 2026 Team`,
+  },
+  'Post-Event Survey': {
+    subject: 'KZN Liquor Indaba 2026 – We Value Your Feedback',
+    message: `Dear {firstName},\n\nThank you for attending the KZN Liquor Indaba 2026 (Reference: {referenceNumber}).\n\nWe would appreciate your feedback to help us improve future events. Please take a few minutes to complete our short survey.\n\n[Survey link will be inserted here]\n\nYour input is invaluable to us.\n\nKZN Liquor Indaba 2026 Team`,
+  },
+  'Custom Message': {
+    subject: '',
+    message: '',
+  },
+};
+
+let pendingAttachments = [];  // [{ filename, content (base64), mime, size }]
 let currentPage = 1;
 const PAGE_SIZE = 15;
 let sortField = 'timestamp';
@@ -2568,6 +2616,81 @@ function selectNotifType(type) {
   currentNotifType = type;
   ['email','sms','both'].forEach(t => document.getElementById('type'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('active', t===type));
   document.getElementById('subjectField').style.display = (type==='sms') ? 'none' : 'block';
+  document.getElementById('attachmentsField').style.display = (type==='sms') ? 'none' : 'block';
+  const charCount = document.getElementById('smsCharCount');
+  if (charCount) charCount.style.display = (type !== 'email') ? 'inline' : 'none';
+}
+
+function applyTemplate(label) {
+  if (!label || !NOTIF_TEMPLATES[label]) return;
+  const tpl = NOTIF_TEMPLATES[label];
+  const subjectEl = document.getElementById('notifSubject');
+  const messageEl = document.getElementById('notifMessage');
+  if (subjectEl) subjectEl.value = tpl.subject || '';
+  if (messageEl) { messageEl.value = tpl.message || ''; updateSmsCount(); }
+}
+
+function updateSmsCount() {
+  const el = document.getElementById('smsCharCount');
+  if (!el) return;
+  const len = (document.getElementById('notifMessage').value || '').length;
+  const smsCount = Math.ceil(len / 160) || 1;
+  el.textContent = `${len} chars (${smsCount} SMS${smsCount !== 1 ? 'es' : ''})`;
+  el.style.color = len > 160 ? '#c53030' : 'var(--mid-gray)';
+}
+
+function handleAttachmentSelect(event) {
+  const files = Array.from(event.target.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const base64 = e.target.result.split(',')[1];
+      pendingAttachments.push({ filename: file.name, content: base64, mime: file.type, size: file.size });
+      renderAttachmentList();
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = ''; // reset so same file can be re-added
+}
+
+function renderAttachmentList() {
+  const list = document.getElementById('attachmentList');
+  if (!list) return;
+  list.innerHTML = pendingAttachments.map((att, i) => `
+    <div style="display:flex;align-items:center;gap:6px;background:var(--light-gray);border-radius:6px;padding:4px 10px;font-size:0.78rem;color:var(--navy);">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+      ${att.filename} <span style="color:var(--mid-gray)">(${(att.size/1024).toFixed(1)}KB)</span>
+      <button onclick="removeAttachment(${i})" style="background:none;border:none;cursor:pointer;color:#c53030;font-size:0.9rem;padding:0 2px;">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+function removeAttachment(idx) {
+  pendingAttachments.splice(idx, 1);
+  renderAttachmentList();
+}
+
+function previewNotification() {
+  const message = document.getElementById('notifMessage').value.trim();
+  const subject = document.getElementById('notifSubject').value.trim();
+  if (!message) { showToast('Enter a message to preview', true); return; }
+  const sampleVars = {
+    '{firstName}': 'Sipho',
+    '{lastName}': 'Nkosi',
+    '{fullName}': 'Sipho Nkosi',
+    '{referenceNumber}': 'IND2026-SAMPLE',
+    '{eventDate}': 'Friday 8 May – Saturday 9 May 2026',
+    '{eventTime}': '08:00',
+    '{venue}': 'Durban, KwaZulu-Natal',
+  };
+  let preview = message;
+  Object.entries(sampleVars).forEach(([k,v]) => { preview = preview.replaceAll(k, v); });
+  const modal = document.getElementById('notifPreviewModal');
+  document.getElementById('notifPreviewContent').textContent =
+    (subject ? `Subject: ${subject}
+${'─'.repeat(50)}
+` : '') + preview;
+  modal.style.display = 'flex';
 }
 
 function updateRecipientPreview() {
@@ -2589,13 +2712,13 @@ function updateRecipientPreview() {
   if (el) el.textContent = count;
 }
 
-function sendNotification() {
+async function sendNotification() {
   const label = document.getElementById('notifTypeLabel').value;
   const message = document.getElementById('notifMessage').value.trim();
   const group = document.getElementById('recipientGroup').value;
   const subject = document.getElementById('notifSubject').value.trim();
   
-  if (!label) { showToast('Please select a notification type', true); return; }
+  if (!label) { showToast('Please select a notification template', true); return; }
   if (!message) { showToast('Please enter a message', true); return; }
   
   const delegates = getDelegates();
@@ -2610,13 +2733,16 @@ function sendNotification() {
   else if (group === 'sms_pref') recipients = delegates.filter(d => d.commPref === 'sms' || d.commPref === 'both');
   
   if (!recipients.length) { showToast('No delegates match this recipient group', true); return; }
-  
+
+  const btn = document.getElementById('sendNotifBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Sending...'; }
+
+  // ── Log locally first (immediate feedback) ──
   const entry = { date: new Date().toISOString(), type: currentNotifType, label, subject, message, recipients: recipients.length, group, sentBy: currentUser?.name || 'Admin' };
   notificationLog.unshift(entry);
   localStorage.setItem('kzn_notif_log', JSON.stringify(notificationLog));
-  pushNotifLogToSheet(entry); // async, non-blocking
+  pushNotifLogToSheet(entry);
   
-  // Update each delegate's notification history
   const notifEntry = { type: currentNotifType, label, date: new Date().toISOString() };
   const updated = delegates.map(d => {
     if (recipients.find(r => r.ref === d.ref)) {
@@ -2625,12 +2751,59 @@ function sendNotification() {
     return d;
   });
   saveDelegates(updated);
-  
+
+  // ── Call PHP notification API ──
+  if (NOTIFY_API_URL) {
+    try {
+      const payload = {
+        notifType:   currentNotifType,
+        label,
+        subject,
+        message,
+        recipients:  recipients.map(d => ({
+          firstName: d.firstName,
+          lastName:  d.lastName,
+          fullName:  `${d.title ? d.title + ' ' : ''}${d.firstName} ${d.lastName}`.trim(),
+          email:     d.email,
+          mobile:    d.mobile,
+          commPref:  d.commPref,
+          ref:       d.ref,
+        })),
+        attachments: pendingAttachments.map(({ filename, content, mime }) => ({ filename, content, mime })),
+        sentBy:      currentUser?.name || 'Admin',
+      };
+
+      const resp = await fetch(NOTIFY_API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+
+      const result = await resp.json();
+
+      if (result.success) {
+        showToast(`✅ Sent to ${result.sent} recipient${result.sent !== 1 ? 's' : ''} via ${currentNotifType.toUpperCase()}`);
+      } else {
+        const failMsg = result.errors?.length ? result.errors[0].error : 'Some deliveries failed';
+        showToast(`⚠ Sent: ${result.sent}, Failed: ${result.failed}. ${failMsg}`, true);
+      }
+    } catch (err) {
+      showToast('⚠ API error – notifications logged locally only. Check api/notify.php is accessible.', true);
+      console.error('Notification API error:', err);
+    }
+  } else {
+    showToast(`Notification logged for ${recipients.length} delegate${recipients.length!==1?'s':''} (API not configured)`);
+  }
+
+  // Reset form
   document.getElementById('notifMessage').value = '';
   document.getElementById('notifSubject').value = '';
-  
+  document.getElementById('notifTypeLabel').value = '';
+  pendingAttachments = [];
+  renderAttachmentList();
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Notification'; }
+
   refreshAll();
-  showToast(`Notification sent to ${recipients.length} delegate${recipients.length!==1?'s':''}`);
 }
 
 function sendSingleNotif(ref) {

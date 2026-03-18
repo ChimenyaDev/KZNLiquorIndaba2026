@@ -1,0 +1,237 @@
+<?php
+/**
+ * KZN Liquor Indaba 2026 — Email Library
+ *
+ * Provides send_smtp_email() for use by send_email.php and notify.php.
+ */
+
+if (!defined('SMTP_HOST')) {
+    require_once dirname(__DIR__) . '/config.php';
+}
+
+/**
+ * Send an email via SMTP using native socket functions (no external library).
+ * Supports STARTTLS, AUTH LOGIN, and MIME multipart with optional attachments.
+ *
+ * @param  string $to          Recipient address
+ * @param  string $toName      Recipient display name (may be empty)
+ * @param  string $subject     Email subject
+ * @param  string $html        HTML body (may be empty)
+ * @param  string $text        Plain-text body
+ * @param  array  $attachments Array of { filename, content (base64), mime }
+ * @return array{ success: bool, message: string, error: string|null }
+ */
+function send_smtp_email(
+    string $to,
+    string $toName,
+    string $subject,
+    string $html,
+    string $text,
+    array  $attachments
+): array {
+    $boundary    = 'KZNIndaba_'  . bin2hex(random_bytes(8));
+    $altBoundary = 'KZNAlt_'     . bin2hex(random_bytes(8));
+
+    $body = build_mime_body($html, $text, $attachments, $boundary, $altBoundary);
+
+    $host       = SMTP_HOST;
+    $port       = SMTP_PORT;
+    $encryption = SMTP_ENCRYPTION;
+
+    $errno  = 0;
+    $errstr = '';
+    $socket = @fsockopen($host, $port, $errno, $errstr, 15);
+    if (!$socket) {
+        return [
+            'success' => false,
+            'message' => "Cannot connect to SMTP server ($host:$port): $errstr",
+            'error'   => $errstr,
+        ];
+    }
+
+    stream_set_timeout($socket, 15);
+
+    try {
+        smtp_expect($socket, '220', 'SMTP greeting');
+
+        smtp_send($socket, "EHLO kznera.org.za");
+        smtp_read_multi($socket);
+
+        if ($encryption === 'tls') {
+            smtp_send($socket, 'STARTTLS');
+            smtp_expect($socket, '220', 'STARTTLS');
+            if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                throw new RuntimeException('TLS negotiation failed');
+            }
+            smtp_send($socket, "EHLO kznera.org.za");
+            smtp_read_multi($socket);
+        }
+
+        smtp_send($socket, 'AUTH LOGIN');
+        smtp_expect($socket, '334', 'AUTH LOGIN');
+        smtp_send($socket, base64_encode(SMTP_USERNAME));
+        smtp_expect($socket, '334', 'AUTH username');
+        smtp_send($socket, base64_encode(SMTP_PASSWORD));
+        smtp_expect($socket, '235', 'AUTH password');
+
+        smtp_send($socket, 'MAIL FROM:<' . SMTP_FROM_EMAIL . '>');
+        smtp_expect($socket, '250', 'MAIL FROM');
+
+        smtp_send($socket, 'RCPT TO:<' . $to . '>');
+        smtp_expect($socket, '250', 'RCPT TO');
+
+        smtp_send($socket, 'DATA');
+        smtp_expect($socket, '354', 'DATA');
+
+        $toDisplay = $toName ? '"' . addslashes($toName) . '" <' . $to . '>' : $to;
+
+        $headers  = "From: \"" . SMTP_FROM_NAME . "\" <" . SMTP_FROM_EMAIL . ">\r\n";
+        $headers .= "To: $toDisplay\r\n";
+        $headers .= "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=\r\n";
+        $headers .= "Date: " . date('r') . "\r\n";
+        $headers .= "MIME-Version: 1.0\r\n";
+
+        if ($attachments) {
+            $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+        } else {
+            $headers .= "Content-Type: multipart/alternative; boundary=\"$altBoundary\"\r\n";
+        }
+
+        $headers .= "X-Mailer: KZNLiquorIndaba2026/1.0\r\n\r\n";
+
+        fwrite($socket, $headers . $body . "\r\n.\r\n");
+        smtp_expect($socket, '250', 'message accepted');
+
+        smtp_send($socket, 'QUIT');
+        fclose($socket);
+
+        return ['success' => true, 'message' => 'Email sent successfully', 'error' => null];
+
+    } catch (RuntimeException $e) {
+        @fclose($socket);
+        return ['success' => false, 'message' => $e->getMessage(), 'error' => $e->getMessage()];
+    }
+}
+
+/**
+ * Wrap a notification message in a branded HTML email template.
+ */
+function build_email_html(string $subject, string $firstName, string $message): string {
+    $safeSubject  = htmlspecialchars($subject,  ENT_QUOTES, 'UTF-8');
+    $safeFirst    = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
+    $safeMessage  = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+
+    return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{$safeSubject}</title>
+  <style>
+    body { margin:0;padding:0;background:#f4f5f7;font-family:Arial,sans-serif; }
+    .wrapper { max-width:600px;margin:30px auto;background:#ffffff;border-radius:10px;overflow:hidden; }
+    .header  { background:#1a3560;color:#ffffff;padding:28px 32px; }
+    .header h1 { margin:0;font-size:1.3rem;font-weight:700; }
+    .header p  { margin:4px 0 0;font-size:0.85rem;opacity:0.85; }
+    .body    { padding:30px 32px;color:#2d3748;font-size:0.95rem;line-height:1.7; }
+    .footer  { padding:18px 32px;background:#f4f5f7;color:#718096;font-size:0.78rem;border-top:1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <h1>KZN Liquor Indaba 2026</h1>
+    <p>KwaZulu-Natal Economic Regulatory Authority</p>
+  </div>
+  <div class="body">
+    <p>Dear {$safeFirst},</p>
+    <p>{$safeMessage}</p>
+    <p style="margin-top:28px;font-size:0.85rem;color:#718096;">
+      For enquiries contact <a href="mailto:indaba@kznera.co.za" style="color:#1a3560;">indaba@kznera.co.za</a>
+    </p>
+  </div>
+  <div class="footer">
+    <p>KZN Liquor Indaba 2026 &nbsp;|&nbsp; Friday 8 May – Saturday 9 May 2026 &nbsp;|&nbsp; Durban, KwaZulu-Natal</p>
+    <p>Personal information handled in accordance with POPIA (Act 4 of 2013).</p>
+  </div>
+</div>
+</body>
+</html>
+HTML;
+}
+
+// ── MIME builder ───────────────────────────────────────────────────────────────
+
+function build_mime_body(
+    string $html,
+    string $text,
+    array  $attachments,
+    string $boundary,
+    string $altBoundary
+): string {
+    $body = '';
+
+    if ($attachments) {
+        $body .= "--$boundary\r\n";
+        $body .= "Content-Type: multipart/alternative; boundary=\"$altBoundary\"\r\n\r\n";
+    }
+
+    $body .= "--$altBoundary\r\n";
+    $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $body .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
+    $body .= quoted_printable_encode($text) . "\r\n";
+
+    if ($html) {
+        $body .= "--$altBoundary\r\n";
+        $body .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $body .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
+        $body .= quoted_printable_encode($html) . "\r\n";
+    }
+
+    $body .= "--$altBoundary--\r\n";
+
+    foreach ($attachments as $att) {
+        $mime     = $att['mime']     ?? 'application/octet-stream';
+        $filename = $att['filename'] ?? 'attachment';
+        $content  = $att['content'];
+
+        $body .= "--$boundary\r\n";
+        $body .= "Content-Type: $mime; name=\"" . addslashes($filename) . "\"\r\n";
+        $body .= "Content-Transfer-Encoding: base64\r\n";
+        $body .= "Content-Disposition: attachment; filename=\"" . addslashes($filename) . "\"\r\n\r\n";
+        $body .= chunk_split($content, 76, "\r\n");
+    }
+
+    if ($attachments) {
+        $body .= "--$boundary--\r\n";
+    }
+
+    return $body;
+}
+
+// ── SMTP helpers ───────────────────────────────────────────────────────────────
+
+function smtp_send($socket, string $cmd): void {
+    fwrite($socket, $cmd . "\r\n");
+}
+
+function smtp_expect($socket, string $code, string $context): string {
+    $line = fgets($socket, 512);
+    if ($line === false) {
+        throw new RuntimeException("No response from server during $context");
+    }
+    if (!str_starts_with(trim($line), $code)) {
+        throw new RuntimeException("Expected $code during $context, got: " . trim($line));
+    }
+    return trim($line);
+}
+
+function smtp_read_multi($socket): array {
+    $lines = [];
+    while (($line = fgets($socket, 512)) !== false) {
+        $lines[] = trim($line);
+        if (strlen($line) >= 4 && $line[3] === ' ') break;
+    }
+    return $lines;
+}
