@@ -1667,10 +1667,15 @@ async function syncFromSheet() {
   if (isSyncing) return;
   isSyncing = true;
 
-  const btn = document.getElementById('syncBtn');
+  /*const btn = document.getElementById('syncBtn');
   const icon = document.getElementById('syncIcon');
   btn.disabled = true;
-  icon.style.animation = 'spin 1s linear infinite';
+  icon.style.animation = 'spin 1s linear infinite';*/
+  
+  const btn = document.getElementById('syncBtn');
+  const icon = document.getElementById('syncIcon');
+  if (btn) btn.disabled = true;
+  if (icon) icon.style.animation = 'spin 1s linear infinite';
 
   try {
     const res = await fetch(SHEET_URL + '?action=get', { cache: 'no-store' });
@@ -1720,8 +1725,11 @@ async function syncFromSheet() {
     console.error('Sheet sync error:', err);
   } finally {
     isSyncing = false;
-    btn.disabled = false;
-    icon.style.animation = '';
+    
+    /*btn.disabled = false;
+    icon.style.animation = '';*/
+    if (btn) btn.disabled = false;
+    if (icon) icon.style.animation = '';
   }
 }
 
