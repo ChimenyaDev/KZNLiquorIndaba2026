@@ -1104,6 +1104,163 @@ tr:hover td { background: rgba(26,53,96,0.02); }
   .charts-row { grid-template-columns: 1fr; }
   .report-cards { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===== CHECK-IN STYLES ===== */
+.checkin-day-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.checkin-day-tab {
+  flex: 1;
+  padding: 16px 20px;
+  background: var(--white);
+  border: 2px solid var(--light-gray);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.checkin-day-tab:hover { border-color: var(--navy); }
+.checkin-day-tab.active {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: white;
+}
+.checkin-day-tab .tab-date {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+.checkin-day-tab .tab-label {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.checkin-day-tab .tab-stats {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  opacity: 0.75;
+}
+.checkin-day-tab.active .tab-stats { opacity: 0.85; }
+
+.checkin-search-bar {
+  background: var(--white);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 18px 24px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.checkin-search-bar .search-wrapper { flex: 1; min-width: 240px; }
+
+.checkin-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.checkin-stat {
+  background: var(--white);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.checkin-stat .cs-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.checkin-stat .cs-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--mid-gray);
+  margin-top: 4px;
+}
+.checkin-stat.expected .cs-num { color: var(--navy); }
+.checkin-stat.checked .cs-num { color: var(--green); }
+.checkin-stat.absent .cs-num { color: var(--red); }
+
+.checkin-table-card {
+  background: var(--white);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.checkin-row-checked td { background: rgba(45,164,78,0.04); }
+
+.badge-checked-in { background: rgba(45,164,78,0.12); color: #1a7a35; }
+.badge-not-arrived { background: rgba(229,62,62,0.08); color: #c53030; }
+
+.checkin-btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.checkin-btn.do-checkin {
+  background: var(--green);
+  color: white;
+}
+.checkin-btn.do-checkin:hover { background: #248c42; transform: translateY(-1px); }
+.checkin-btn.undo-checkin {
+  background: var(--light-gray);
+  color: var(--mid-gray);
+  font-weight: 500;
+}
+.checkin-btn.undo-checkin:hover { background: var(--red); color: white; }
+
+.checkin-time {
+  font-size: 0.75rem;
+  color: var(--mid-gray);
+  margin-top: 2px;
+}
+
+.checkin-report-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+.checkin-report-card {
+  background: var(--white);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.checkin-report-card .crh {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--light-gray);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.crh-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.crh h4 { font-size: 0.88rem; font-weight: 700; color: var(--navy); }
+.crh .crh-count { margin-left: auto; font-weight: 700; font-size: 0.88rem; }
 </style>
 </head>
 <body>
@@ -1188,6 +1345,13 @@ tr:hover td { background: rgba(26,53,96,0.02); }
         <a class="nav-item" onclick="switchView('notiflog', this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Notification Log
+        </a>
+
+        <div class="nav-section-label">Event Day</div>
+        <a class="nav-item" onclick="switchView('checkin', this)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Delegate Check-In
+          <span class="nav-badge" id="checkinBadge" style="display:none;"></span>
         </a>
 
         <div class="nav-section-label">Data &amp; Reports</div>
@@ -1370,6 +1534,41 @@ tr:hover td { background: rgba(26,53,96,0.02); }
 
         <!-- NOTIFICATIONS VIEW -->
         <div class="view" id="view-notifications">
+
+          <!-- NOTIFICATION SETUP GUIDE -->
+          <div style="background:#fffbeb;border:1.5px solid #f4a020;border-radius:14px;padding:20px 24px;margin-bottom:20px;">
+            <div style="display:flex;align-items:flex-start;gap:14px;">
+              <div style="flex-shrink:0;width:38px;height:38px;background:#f4a020;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                <svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div style="font-weight:700;color:#7a4f00;font-size:0.9rem;margin-bottom:6px;">⚠ Notifications require an email/SMS backend — see setup guide below</div>
+                <div style="font-size:0.82rem;color:#7a4f00;line-height:1.7;">
+                  Currently this system <strong>logs notifications locally</strong> but does not actually send emails or SMS messages. To make sending work, connect one of the services below to your Google Apps Script backend. <button onclick="toggleNotifGuide()" style="background:none;border:none;color:#b45309;font-weight:700;cursor:pointer;font-size:0.82rem;text-decoration:underline;">Show setup instructions ▼</button>
+                </div>
+              </div>
+            </div>
+            <div id="notifGuide" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #f4a020;">
+              <div style="font-size:0.85rem;color:#7a4f00;line-height:1.8;">
+                <strong>Option 1 — Email via Gmail (free, simplest):</strong><br>
+                In your Google Apps Script (the same script connected via <code>SHEET_URL</code>), add a <code>sendEmail</code> action using <code>GmailApp.sendEmail(to, subject, body)</code>. This works immediately with no third-party account needed — Gmail quota is 100 emails/day on free accounts, 1 500/day on Google Workspace.
+                <br><br>
+                <strong>Option 2 — Email via SendGrid (recommended for bulk):</strong><br>
+                Sign up at <a href="https://sendgrid.com" target="_blank" style="color:#b45309;">sendgrid.com</a> (free tier: 100 emails/day). Get an API key → add it to your Apps Script as a Script Property → call <code>UrlFetchApp.fetch('https://api.sendgrid.com/v3/mail/send', options)</code> from a <code>sendEmail</code> action. Supports HTML email templates.
+                <br><br>
+                <strong>Option 3 — SMS via Twilio (for South Africa):</strong><br>
+                Sign up at <a href="https://twilio.com" target="_blank" style="color:#b45309;">twilio.com</a> → obtain Account SID, Auth Token, and a ZA virtual number (or use Twilio Alphanumeric Sender). Store credentials as Script Properties in Apps Script → call Twilio's REST API using <code>UrlFetchApp.fetch</code> from a <code>sendSMS</code> action.
+                <br><br>
+                <strong>Option 4 — SMS via BulkSMS.com (SA-based, supports local numbers):</strong><br>
+                Register at <a href="https://www.bulksms.com" target="_blank" style="color:#b45309;">bulksms.com</a>. Use their REST API with your API token via <code>UrlFetchApp.fetch('https://api.bulksms.com/v1/messages', options)</code>. Affordable for ZA numbers, no monthly fee, pay per SMS.
+                <br><br>
+                <strong>How to wire this up in your Apps Script:</strong><br>
+                In your existing <code>doPost(e)</code> handler, add a branch:<br>
+                <code style="display:block;background:#fef3c7;padding:8px 12px;border-radius:6px;margin-top:6px;font-size:0.8rem;">if (data.action === 'notify') { /* call GmailApp or UrlFetchApp here */ }</code>
+                Then in this admin page's <code>sendNotification()</code> function, add a <code>fetch(SHEET_URL, { method:'POST', body: JSON.stringify({ action:'notify', type, recipients, subject, message }) })</code> call after the local log is saved.
+              </div>
+            </div>
+          </div>
           <div class="notification-compose">
             <div class="nc-header">
               <div>
@@ -1531,6 +1730,20 @@ tr:hover td { background: rgba(26,53,96,0.02); }
               <h4>Notification Activity Report</h4>
               <p>Complete log of all notifications sent, by delegate and type</p>
             </div>
+            <div class="report-card" onclick="switchView('checkin', null); setCheckinDay('day1'); setTimeout(()=>exportCheckinReport(), 300);">
+              <div class="report-icon">
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
+              <h4>Day 1 Check-In Report</h4>
+              <p>Export who checked in and who did not arrive on Friday 8 May 2026</p>
+            </div>
+            <div class="report-card" onclick="switchView('checkin', null); setCheckinDay('day2'); setTimeout(()=>exportCheckinReport(), 300);">
+              <div class="report-icon">
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
+              <h4>Day 2 Check-In Report</h4>
+              <p>Export who checked in and who did not arrive on Saturday 9 May 2026</p>
+            </div>
           </div>
 
           <!-- SUMMARY STATS TABLE -->
@@ -1554,6 +1767,124 @@ tr:hover td { background: rgba(26,53,96,0.02); }
             </div>
           </div>
         </div>
+
+        <!-- CHECK-IN VIEW -->
+        <div class="view" id="view-checkin">
+
+          <!-- Day Tabs -->
+          <div class="checkin-day-tabs">
+            <div class="checkin-day-tab active" id="checkinTab-day1" onclick="setCheckinDay('day1')">
+              <div class="tab-date">Friday 8 May 2026</div>
+              <div class="tab-label">Day 1</div>
+              <div class="tab-stats" id="checkinTabStats-day1">— expected</div>
+            </div>
+            <div class="checkin-day-tab" id="checkinTab-day2" onclick="setCheckinDay('day2')">
+              <div class="tab-date">Saturday 9 May 2026</div>
+              <div class="tab-label">Day 2</div>
+              <div class="tab-stats" id="checkinTabStats-day2">— expected</div>
+            </div>
+          </div>
+
+          <!-- Live stats -->
+          <div class="checkin-stats-row">
+            <div class="checkin-stat expected">
+              <div class="cs-num" id="ciStatExpected">0</div>
+              <div class="cs-label">Expected</div>
+            </div>
+            <div class="checkin-stat checked">
+              <div class="cs-num" id="ciStatChecked">0</div>
+              <div class="cs-label">Checked In</div>
+            </div>
+            <div class="checkin-stat absent">
+              <div class="cs-num" id="ciStatAbsent">0</div>
+              <div class="cs-label">Not Yet Arrived</div>
+            </div>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="checkin-search-bar">
+            <div class="search-wrapper" style="flex:1;min-width:240px;">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" class="search-input" id="checkinSearch" placeholder="Search by name, reference code, or ID number..." oninput="renderCheckinTable()">
+            </div>
+            <select class="filter-select" id="checkinStatusFilter" onchange="renderCheckinTable()">
+              <option value="">All Delegates</option>
+              <option value="checked">Checked In</option>
+              <option value="pending">Not Yet Arrived</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="exportCheckinReport()">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              Export Report
+            </button>
+          </div>
+
+          <!-- Delegate list table -->
+          <div class="checkin-table-card">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Delegate</th>
+                    <th>Ref / Code</th>
+                    <th>ID Number</th>
+                    <th>Organisation</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="checkinTableBody">
+                  <tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:40px;">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-pagination">
+              <span id="checkinPaginationInfo">Showing 0 delegates</span>
+              <div class="pagination-controls" id="checkinPaginationControls"></div>
+            </div>
+          </div>
+
+          <!-- Check-In Report -->
+          <div style="margin-top:24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <strong style="font-size:0.95rem;color:var(--navy);font-family:'Playfair Display',serif;">Attendance Report</strong>
+              <button class="btn btn-secondary btn-sm" onclick="exportCheckinReport('full')">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Export Full Report
+              </button>
+            </div>
+            <div class="checkin-report-grid">
+              <div class="checkin-report-card">
+                <div class="crh">
+                  <div class="crh-dot" style="background:var(--green);"></div>
+                  <h4>Checked In</h4>
+                  <span class="crh-count" id="ciReportCheckedCount" style="color:var(--green);">0</span>
+                </div>
+                <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
+                  <table>
+                    <thead><tr><th>Delegate</th><th>Ref</th><th>Check-In Time</th></tr></thead>
+                    <tbody id="ciReportCheckedBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="checkin-report-card">
+                <div class="crh">
+                  <div class="crh-dot" style="background:var(--red);"></div>
+                  <h4>Did Not Show</h4>
+                  <span class="crh-count" id="ciReportAbsentCount" style="color:var(--red);">0</span>
+                </div>
+                <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
+                  <table>
+                    <thead><tr><th>Delegate</th><th>Ref</th><th>Organisation</th></tr></thead>
+                    <tbody id="ciReportAbsentBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /view-checkin -->
 
       </div><!-- /page-content -->
     </div><!-- /main-area -->
@@ -1798,7 +2129,8 @@ function switchView(view, el) {
     delegates: ['Delegate Register', 'Manage and view all registered delegates'],
     notifications: ['Send Notifications', 'Compose and send email or SMS communications'],
     notiflog: ['Notification Log', 'History of all communications sent to delegates'],
-    reports: ['Reports & Exports', 'Generate reports and export data to spreadsheet']
+    reports: ['Reports & Exports', 'Generate reports and export data to spreadsheet'],
+    checkin: ['Delegate Check-In', 'Register delegate arrivals on the day of the event'],
   };
   
   const [title, sub] = titles[view] || ['', ''];
@@ -1809,6 +2141,7 @@ function switchView(view, el) {
   if (view === 'notifications') updateRecipientPreview();
   if (view === 'notiflog') renderNotifLog();
   if (view === 'reports') renderSummaryStats();
+  if (view === 'checkin') renderCheckinView();
 }
 
 // ===== REFRESH ALL DATA =====
@@ -2283,6 +2616,282 @@ function showToast(msg, isError=false) {
   t.classList.add('visible');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('visible'), 3000);
+}
+
+// ===== CHECK-IN MODULE =====
+let currentCheckinDay = 'day1';
+let checkinPage = 1;
+const CHECKIN_PAGE_SIZE = 20;
+
+function getCheckinData() {
+  return JSON.parse(localStorage.getItem('kzn_checkin') || '{}');
+}
+function saveCheckinData(data) {
+  localStorage.setItem('kzn_checkin', JSON.stringify(data));
+}
+
+function setCheckinDay(day) {
+  currentCheckinDay = day;
+  checkinPage = 1;
+  document.getElementById('checkinSearch').value = '';
+  document.getElementById('checkinStatusFilter').value = '';
+  ['day1','day2'].forEach(d => {
+    document.getElementById('checkinTab-' + d).classList.toggle('active', d === day);
+  });
+  renderCheckinView();
+}
+
+function renderCheckinView() {
+  const delegates = getDelegates();
+  const checkins = getCheckinData();
+  const day = currentCheckinDay;
+
+  const dayDelegates = delegates.filter(d => (d.days || []).includes(day));
+  const checked = dayDelegates.filter(d => checkins[day + '_' + d.ref]);
+  const absent = dayDelegates.filter(d => !checkins[day + '_' + d.ref]);
+
+  // Tab stats
+  ['day1','day2'].forEach(d => {
+    const exp = delegates.filter(x => (x.days||[]).includes(d)).length;
+    const ch = Object.keys(checkins).filter(k => k.startsWith(d + '_')).length;
+    const el = document.getElementById('checkinTabStats-' + d);
+    if (el) el.textContent = `${ch}/${exp} checked in`;
+  });
+
+  // Live stat cards
+  document.getElementById('ciStatExpected').textContent = dayDelegates.length;
+  document.getElementById('ciStatChecked').textContent = checked.length;
+  document.getElementById('ciStatAbsent').textContent = absent.length;
+
+  // Badge
+  const badge = document.getElementById('checkinBadge');
+  if (badge) {
+    const total = Object.keys(checkins).length;
+    badge.textContent = total;
+    badge.style.display = total > 0 ? '' : 'none';
+  }
+
+  renderCheckinTable();
+  renderCheckinReport();
+}
+
+function renderCheckinTable() {
+  const delegates = getDelegates();
+  const checkins = getCheckinData();
+  const day = currentCheckinDay;
+  const query = (document.getElementById('checkinSearch')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('checkinStatusFilter')?.value || '';
+
+  let rows = delegates.filter(d => (d.days || []).includes(day));
+
+  if (query) {
+    rows = rows.filter(d => {
+      const key = day + '_' + d.ref;
+      return (
+        d.ref.toLowerCase().includes(query) ||
+        (d.firstName + ' ' + d.lastName).toLowerCase().includes(query) ||
+        (d.lastName + ' ' + d.firstName).toLowerCase().includes(query) ||
+        (d.idNumber || '').toLowerCase().includes(query) ||
+        (d.orgName || '').toLowerCase().includes(query) ||
+        (d.mobile || '').includes(query)
+      );
+    });
+  }
+
+  if (statusFilter === 'checked') rows = rows.filter(d => checkins[day + '_' + d.ref]);
+  else if (statusFilter === 'pending') rows = rows.filter(d => !checkins[day + '_' + d.ref]);
+
+  // Sort: not-checked-in first, then checked-in (by check-in time desc)
+  rows.sort((a, b) => {
+    const ca = checkins[day + '_' + a.ref];
+    const cb = checkins[day + '_' + b.ref];
+    if (!ca && !cb) return (a.lastName || '').localeCompare(b.lastName || '');
+    if (!ca) return -1;
+    if (!cb) return 1;
+    return new Date(cb.time) - new Date(ca.time);
+  });
+
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / CHECKIN_PAGE_SIZE));
+  if (checkinPage > totalPages) checkinPage = 1;
+  const paged = rows.slice((checkinPage-1)*CHECKIN_PAGE_SIZE, checkinPage*CHECKIN_PAGE_SIZE);
+
+  const body = document.getElementById('checkinTableBody');
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:40px;">${query ? 'No delegates match your search.' : 'No delegates registered for this day yet.'}</td></tr>`;
+    document.getElementById('checkinPaginationInfo').textContent = 'Showing 0 delegates';
+    document.getElementById('checkinPaginationControls').innerHTML = '';
+    return;
+  }
+
+  body.innerHTML = paged.map(d => {
+    const key = day + '_' + d.ref;
+    const ci = checkins[key];
+    const isChecked = !!ci;
+    const timeStr = ci ? new Date(ci.time).toLocaleTimeString('en-ZA', {hour:'2-digit',minute:'2-digit'}) : '';
+    const operatorStr = ci ? `<div class="checkin-time">By ${ci.by || 'Unknown'}</div>` : '';
+    return `
+      <tr class="${isChecked ? 'checkin-row-checked' : ''}">
+        <td>
+          <div class="delegate-name">${d.title || ''} ${d.firstName} ${d.lastName}</div>
+          <div class="delegate-org">${d.district || ''}</div>
+        </td>
+        <td style="font-family:monospace;font-size:0.82rem;color:var(--navy);font-weight:600;">${d.ref}</td>
+        <td style="font-size:0.82rem;color:var(--mid-gray);">${d.idNumber || '—'}</td>
+        <td>
+          <div style="font-size:0.83rem;">${d.orgName || '—'}</div>
+        </td>
+        <td><span style="font-size:0.78rem;">${(d.delegateCategory||'').split('/')[0].trim()}</span></td>
+        <td>
+          <span class="badge ${isChecked ? 'badge-checked-in' : 'badge-not-arrived'}">
+            ${isChecked ? '✓ Checked In' : 'Not Arrived'}
+          </span>
+        </td>
+        <td>
+          <div style="font-size:0.83rem;font-weight:${timeStr?'600':'400'};color:${timeStr?'var(--green)':'var(--mid-gray)'};">${timeStr || '—'}</div>
+          ${operatorStr}
+        </td>
+        <td>
+          ${isChecked
+            ? `<button class="checkin-btn undo-checkin" onclick="undoCheckin('${d.ref}')">✕ Undo</button>`
+            : `<button class="checkin-btn do-checkin" onclick="doCheckin('${d.ref}')">✓ Check In</button>`
+          }
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('checkinPaginationInfo').textContent = `Showing ${(checkinPage-1)*CHECKIN_PAGE_SIZE+1}–${Math.min(checkinPage*CHECKIN_PAGE_SIZE, total)} of ${total} delegates`;
+  
+  const ctrl = document.getElementById('checkinPaginationControls');
+  ctrl.innerHTML = '';
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn' + (i === checkinPage ? ' active' : '');
+    btn.textContent = i;
+    btn.onclick = () => { checkinPage = i; renderCheckinTable(); };
+    ctrl.appendChild(btn);
+  }
+}
+
+function doCheckin(ref) {
+  const checkins = getCheckinData();
+  const key = currentCheckinDay + '_' + ref;
+  checkins[key] = {
+    time: new Date().toISOString(),
+    by: currentUser?.name || 'Registration Desk',
+    day: currentCheckinDay
+  };
+  saveCheckinData(checkins);
+  
+  // Also update the delegate record
+  const delegates = getDelegates();
+  const updated = delegates.map(d => {
+    if (d.ref === ref) {
+      const checkedDays = d.checkedInDays || {};
+      checkedDays[currentCheckinDay] = new Date().toISOString();
+      return { ...d, checkedInDays };
+    }
+    return d;
+  });
+  saveDelegates(updated);
+
+  showToast('✓ Delegate checked in successfully');
+  renderCheckinView();
+}
+
+function undoCheckin(ref) {
+  if (!confirm('Remove check-in for this delegate?')) return;
+  const checkins = getCheckinData();
+  delete checkins[currentCheckinDay + '_' + ref];
+  saveCheckinData(checkins);
+  
+  const delegates = getDelegates();
+  const updated = delegates.map(d => {
+    if (d.ref === ref) {
+      const checkedDays = d.checkedInDays || {};
+      delete checkedDays[currentCheckinDay];
+      return { ...d, checkedInDays };
+    }
+    return d;
+  });
+  saveDelegates(updated);
+  
+  showToast('Check-in removed');
+  renderCheckinView();
+}
+
+function renderCheckinReport() {
+  const delegates = getDelegates();
+  const checkins = getCheckinData();
+  const day = currentCheckinDay;
+
+  const dayDelegates = delegates.filter(d => (d.days || []).includes(day));
+  const checkedList = dayDelegates.filter(d => checkins[day + '_' + d.ref]);
+  const absentList = dayDelegates.filter(d => !checkins[day + '_' + d.ref]);
+
+  document.getElementById('ciReportCheckedCount').textContent = checkedList.length;
+  document.getElementById('ciReportAbsentCount').textContent = absentList.length;
+
+  const checkedBody = document.getElementById('ciReportCheckedBody');
+  checkedBody.innerHTML = checkedList.length
+    ? checkedList.map(d => {
+        const ci = checkins[day + '_' + d.ref];
+        const t = ci ? new Date(ci.time).toLocaleTimeString('en-ZA', {hour:'2-digit',minute:'2-digit'}) : '';
+        return `<tr>
+          <td style="font-size:0.82rem;font-weight:600;">${d.title||''} ${d.firstName} ${d.lastName}</td>
+          <td style="font-family:monospace;font-size:0.78rem;color:var(--mid-gray);">${d.ref}</td>
+          <td style="font-size:0.82rem;color:var(--green);font-weight:600;">${t}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="3" style="text-align:center;color:var(--mid-gray);padding:20px;font-size:0.82rem;">No check-ins yet</td></tr>`;
+
+  const absentBody = document.getElementById('ciReportAbsentBody');
+  absentBody.innerHTML = absentList.length
+    ? absentList.map(d => `<tr>
+        <td style="font-size:0.82rem;font-weight:600;">${d.title||''} ${d.firstName} ${d.lastName}</td>
+        <td style="font-family:monospace;font-size:0.78rem;color:var(--mid-gray);">${d.ref}</td>
+        <td style="font-size:0.78rem;color:var(--mid-gray);">${d.orgName||'—'}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="3" style="text-align:center;color:var(--mid-gray);padding:20px;font-size:0.82rem;">All delegates have checked in!</td></tr>`;
+}
+
+function exportCheckinReport(mode) {
+  const delegates = getDelegates();
+  const checkins = getCheckinData();
+  const days = mode === 'full' ? ['day1', 'day2'] : [currentCheckinDay];
+  
+  const rows = [['Reference','Name','ID Number','Organisation','Category','District','Day','Check-In Status','Check-In Time','Checked In By']];
+  
+  days.forEach(day => {
+    const dayLabel = day === 'day1' ? 'Day 1 (8 May)' : 'Day 2 (9 May)';
+    const dayDelegates = delegates.filter(d => (d.days||[]).includes(day));
+    dayDelegates.forEach(d => {
+      const ci = checkins[day + '_' + d.ref];
+      rows.push([
+        d.ref,
+        `${d.title||''} ${d.firstName} ${d.lastName}`.trim(),
+        d.idNumber || '',
+        d.orgName || '',
+        d.delegateCategory || '',
+        d.district || '',
+        dayLabel,
+        ci ? 'Checked In' : 'Did Not Arrive',
+        ci ? new Date(ci.time).toLocaleString('en-ZA') : '',
+        ci ? (ci.by || '') : ''
+      ]);
+    });
+  });
+  
+  const dayLabel = mode === 'full' ? 'Full' : (currentCheckinDay === 'day1' ? 'Day1' : 'Day2');
+  downloadCSV(rows, `KZN_Indaba_Checkin_Report_${dayLabel}.csv`);
+}
+
+// Hook check-in into refreshAll and switchView
+const _origRefreshAll = window.refreshAll;
+
+function toggleNotifGuide() {
+  const el = document.getElementById('notifGuide');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 // ===== CLOSE MODAL ON OVERLAY CLICK =====
