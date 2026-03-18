@@ -2636,7 +2636,7 @@ function updateSmsCount() {
   const text = document.getElementById('notifMessage').value || '';
   const len = text.length;
   // GSM-7 charset; characters outside this set require UCS-2 (70 chars/segment)
-  const gsm7 = /^[ -À-ÆÈ-ÊÌ-ÏÒ-ÖÙ-Üà-æè-êì-ïò-öù-üÇØøÅåΑ-ΡΣ-Ωα-ω€£¥£¥]*$/;
+  const gsm7 = /^[\x00-\x7fÀ-ÆÈ-ÊÌ-ÏÒ-ÖÙ-Üà-æè-êì-ïò-öù-üÇØøÅåΑ-ΡΣ-Ωα-ω€£¥£¥]*$/;
   const isUnicode = !gsm7.test(text);
   const segSize = isUnicode ? (len > 70 ? 67 : 70) : (len > 160 ? 153 : 160);
   const smsCount = len === 0 ? 1 : Math.ceil(len / segSize);
