@@ -2,6 +2,10 @@
 api/data/comm_log.json
 api/data/rate_limit.json
 
+# Node.js dependencies
+node_modules/
+package-lock.json
+
 # OS & editor artefacts
 .DS_Store
 Thumbs.db
