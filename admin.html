@@ -1705,8 +1705,15 @@ async function syncFromSheet() {
       status:           row['Status']          || row.status || 'Registered',
     }));
 
-    mergeSheetData(normalised);
-    refreshAll();
+    try {
+      mergeSheetData(normalised);
+      console.log('After merge:', getDelegates().length); // should be 8
+      refreshAll();
+    } catch(err) {
+      console.error('mergeSheetData failed:', err);
+    }
+    //mergeSheetData(normalised);
+    //refreshAll();
     showToast(`Synced ${normalised.length} records from Google Sheets`);
   } catch (err) {
     showToast('Sync failed: ' + err.message + '. Check your SHEET_URL.', true);
