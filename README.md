@@ -10,7 +10,7 @@
 
 This project is a two-file, self-contained web application built for the **Invitations and Registration Committee** of the KZN Liquor Indaba 2026. It provides a public delegate registration portal and a secure admin dashboard for managing all 8,862+ potential licensee delegates across KwaZulu-Natal's 11 district municipalities.
 
-The system was designed to be deployable for free with zero server infrastructure, using **Netlify** for hosting and **Google Sheets** as a live centralised database.
+The system was designed to be deployable for free with zero server infrastructure, using **Vercel** for hosting and **Google Sheets** as a live centralised database.
 
 ---
 
@@ -117,15 +117,15 @@ Simply open `registration.html` in any browser. Registrations will be saved to `
 
 #### Step 1 — Deploy to Netlify
 
-1. Go to [netlify.com](https://netlify.com) and create a free account
+1. Go to [vercel.com](https://vercel.com) and create a free account
 2. From your dashboard: **Add new site → Deploy manually**
-3. Drag and drop both `registration.html` and `admin.html` into the upload box
-4. Netlify assigns a live URL immediately, e.g. `https://kzn-indaba-2026.netlify.app`
+3. Drag and drop both `registration.html` and `admin.html` into the upload box or link a GitHub repository
+4. Vercel assigns a live URL immediately, e.g. `https://kzn-liquor-indaba2026.vercel.app`
 5. Optional: set a custom subdomain under **Site configuration → Change site name**
 
 Your URLs will be:
-- Registration: `https://your-site.netlify.app/registration.html`
-- Admin: `https://your-site.netlify.app/admin.html`
+- Registration: `https://kzn-liquor-indaba2026.vercel.app/registration.html`
+- Admin: `https://kzn-liquor-indaba2026.vercel.app/admin.html`
 
 ---
 
