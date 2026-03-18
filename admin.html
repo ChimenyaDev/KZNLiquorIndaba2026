@@ -2614,9 +2614,15 @@ function removeDelegate(ref) {
 // ===== NOTIFICATIONS =====
 function selectNotifType(type) {
   currentNotifType = type;
-  ['email','sms','both'].forEach(t => document.getElementById('type'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('active', t===type));
-  document.getElementById('subjectField').style.display = (type==='sms') ? 'none' : 'block';
-  document.getElementById('attachmentsField').style.display = (type==='sms') ? 'none' : 'block';
+  const idMap = { email: 'typeEmail', sms: 'typeSMS', both: 'typeBoth' };
+  ['email','sms','both'].forEach(t => {
+    const el = document.getElementById(idMap[t]);
+    if (el) el.classList.toggle('active', t === type);
+  });
+  const subjectField = document.getElementById('subjectField');
+  const attachmentsField = document.getElementById('attachmentsField');
+  if (subjectField) subjectField.style.display = (type === 'sms') ? 'none' : 'block';
+  if (attachmentsField) attachmentsField.style.display = (type === 'sms') ? 'none' : 'block';
   const charCount = document.getElementById('smsCharCount');
   if (charCount) charCount.style.display = (type !== 'email') ? 'inline' : 'none';
 }
@@ -2783,6 +2789,11 @@ async function sendNotification() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
       });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(`Server returned ${resp.status}${text ? ': ' + text.slice(0, 200) : ''}`);
+      }
 
       const result = await resp.json();
 
