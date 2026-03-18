@@ -2633,10 +2633,15 @@ function applyTemplate(label) {
 function updateSmsCount() {
   const el = document.getElementById('smsCharCount');
   if (!el) return;
-  const len = (document.getElementById('notifMessage').value || '').length;
-  const smsCount = Math.ceil(len / 160) || 1;
-  el.textContent = `${len} chars (${smsCount} SMS${smsCount !== 1 ? 'es' : ''})`;
-  el.style.color = len > 160 ? '#c53030' : 'var(--mid-gray)';
+  const text = document.getElementById('notifMessage').value || '';
+  const len = text.length;
+  // GSM-7 charset; characters outside this set require UCS-2 (70 chars/segment)
+  const gsm7 = /^[ -À-ÆÈ-ÊÌ-ÏÒ-ÖÙ-Üà-æè-êì-ïò-öù-üÇØøÅåΑ-ΡΣ-Ωα-ω€£¥£¥]*$/;
+  const isUnicode = !gsm7.test(text);
+  const segSize = isUnicode ? (len > 70 ? 67 : 70) : (len > 160 ? 153 : 160);
+  const smsCount = len === 0 ? 1 : Math.ceil(len / segSize);
+  el.textContent = `${len} chars (${smsCount} SMS${smsCount !== 1 ? 'es' : ''}${isUnicode ? ', Unicode' : ''})`;
+  el.style.color = len > (isUnicode ? 70 : 160) ? '#c53030' : 'var(--mid-gray)';
 }
 
 function handleAttachmentSelect(event) {

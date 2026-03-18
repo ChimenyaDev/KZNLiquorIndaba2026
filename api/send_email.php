@@ -89,7 +89,7 @@ if (!check_rate_limit()) {
 }
 
 if (!$text && $html) {
-    $text = strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $html));
+    $text = html_to_plain_text($html);
 }
 
 $result = send_smtp_email($to, $toName, $subject, $html, $text, $attachments);

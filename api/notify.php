@@ -119,7 +119,7 @@ foreach ($recipients as $delegate) {
     // ── Send Email ─────────────────────────────────────────────────────────────
     if ($use_email && $email && validate_email($email)) {
         $html_body = build_email_html($personalised_subject, $firstName, $personalised_message);
-        $text_body = strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $personalised_message));
+        $text_body = html_to_plain_text($personalised_message);
 
         $email_result = send_smtp_email($email, $fullName, $personalised_subject, $html_body, $text_body, $attachments);
 

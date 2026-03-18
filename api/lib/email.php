@@ -83,9 +83,9 @@ function send_smtp_email(
         smtp_send($socket, 'DATA');
         smtp_expect($socket, '354', 'DATA');
 
-        $toDisplay = $toName ? '"' . addslashes($toName) . '" <' . $to . '>' : $to;
+        $toDisplay = $toName ? '"' . encode_header_phrase($toName) . '" <' . $to . '>' : $to;
 
-        $headers  = "From: \"" . SMTP_FROM_NAME . "\" <" . SMTP_FROM_EMAIL . ">\r\n";
+        $headers  = "From: \"" . encode_header_phrase(SMTP_FROM_NAME) . "\" <" . SMTP_FROM_EMAIL . ">\r\n";
         $headers .= "To: $toDisplay\r\n";
         $headers .= "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=\r\n";
         $headers .= "Date: " . date('r') . "\r\n";
@@ -197,9 +197,9 @@ function build_mime_body(
         $content  = $att['content'];
 
         $body .= "--$boundary\r\n";
-        $body .= "Content-Type: $mime; name=\"" . addslashes($filename) . "\"\r\n";
+        $body .= "Content-Type: $mime; name=\"" . encode_mime_filename($filename) . "\"\r\n";
         $body .= "Content-Transfer-Encoding: base64\r\n";
-        $body .= "Content-Disposition: attachment; filename=\"" . addslashes($filename) . "\"\r\n\r\n";
+        $body .= "Content-Disposition: attachment; filename=\"" . encode_mime_filename($filename) . "\"\r\n\r\n";
         $body .= chunk_split($content, 76, "\r\n");
     }
 
@@ -234,4 +234,38 @@ function smtp_read_multi($socket): array {
         if (strlen($line) >= 4 && $line[3] === ' ') break;
     }
     return $lines;
+}
+
+// ── Encoding helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Encode a display name for use in an RFC 2822 "phrase" (e.g. From/To header).
+ * Strips newlines to prevent header injection, then applies base64 encoded-word
+ * encoding to handle non-ASCII characters safely.
+ */
+function encode_header_phrase(string $phrase): string {
+    // Strip any CR/LF characters to prevent header injection
+    $phrase = preg_replace('/[\r\n]/', '', $phrase);
+    // Use RFC 2047 encoded-word so non-ASCII characters are safe
+    return '=?UTF-8?B?' . base64_encode($phrase) . '?=';
+}
+
+/**
+ * Encode an attachment filename for use in a MIME Content-Disposition header.
+ * Strips path separators and newlines, applies RFC 2047 encoded-word encoding.
+ */
+function encode_mime_filename(string $filename): string {
+    // Strip directory separators and newlines to prevent injection
+    $filename = preg_replace('/[\r\n\/\\\\]/', '', $filename);
+    return '=?UTF-8?B?' . base64_encode($filename) . '?=';
+}
+
+/**
+ * Convert HTML to a plain-text fallback by stripping tags and normalising
+ * line breaks.  Shared by notify.php and send_email.php.
+ */
+function html_to_plain_text(string $html): string {
+    $text = str_replace(['<br>', '<br/>', '<br />'], "\n", $html);
+    $text = str_replace(['</p>', '</div>', '</h1>', '</h2>', '</h3>'], "\n\n", $text);
+    return trim(strip_tags($text));
 }

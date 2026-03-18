@@ -138,6 +138,6 @@ function read_comm_log(): array {
 function ensure_data_dir(): void {
     $dir = dirname(COMM_LOG_FILE);
     if (!is_dir($dir)) {
-        mkdir($dir, 0750, true);
+        mkdir($dir, 0700, true);
     }
 }
