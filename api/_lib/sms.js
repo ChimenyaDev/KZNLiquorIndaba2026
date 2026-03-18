@@ -1,0 +1,97 @@
+/**
+ * KZN Liquor Indaba 2026 — SMS Library (Node.js / Vercel)
+ * 
+ * Sends SMS via UMSG XML gateway at https://sms01.umsg.co.za/xml/send
+ */
+
+import axios from 'axios';
+import config from './config.js';
+
+/**
+ * Normalize a South African mobile number to international format (+27…).
+ * Accepts: 0821234567 / +27821234567 / 27821234567
+ */
+function normalizeZaNumber(number) {
+  const cleaned = number.replace(/\s+/g, '');
+  
+  if (cleaned.startsWith('0') && cleaned.length === 10) {
+    return '+27' + cleaned.substring(1);
+  }
+  
+  if (cleaned.startsWith('27') && cleaned.length === 11) {
+    return '+' + cleaned;
+  }
+  
+  return cleaned;
+}
+
+/**
+ * Send an SMS through the UMSG XML Gateway.
+ * 
+ * @param {string} to - Recipient phone number
+ * @param {string} message - SMS body
+ * @returns {Promise<{success: boolean, message: string, gateway_ref: string|null, error: string|null}>}
+ */
+export async function sendUmsgSms(to, message) {
+  const destination = normalizeZaNumber(to);
+
+  // Build XML payload
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<sms>\n  <username>${escapeXml(config.sms.username)}</username>\n  <password>${escapeXml(config.sms.password)}</password>\n  <sender>${escapeXml(config.sms.sender)}</sender>\n  <destination>${escapeXml(destination)}</destination>\n  <message>${escapeXml(message)}</message>\n</sms>`;
+
+  try {
+    const response = await axios.post(config.sms.gatewayUrl, xml, {
+      headers: { 'Content-Type': 'text/xml; charset=UTF-8' },
+      timeout: 15000
+    });
+
+    // Parse XML response
+    const responseText = response.data;
+    const statusMatch = responseText.match(/<status>(.*?)<\/status>/i) || 
+                        responseText.match(/<Status>(.*?)<\/Status>/i);
+    const refMatch = responseText.match(/<msgid>(.*?)<\/msgid>/i) || 
+                     responseText.match(/<reference>(.*?)<\/reference>/i);
+    
+    const status = (statusMatch ? statusMatch[1] : '').toUpperCase();
+    const ref = refMatch ? refMatch[1] : null;
+
+    if (['OK', 'ACCEPTED', '0', 'SUCCESS'].includes(status)) {
+      return {
+        success: true,
+        message: 'SMS sent successfully',
+        gateway_ref: ref,
+        error: null
+      };
+    }
+
+    const errorMatch = responseText.match(/<error>(.*?)<\/error>/i) || 
+                       responseText.match(/<description>(.*?)<\/description>/i);
+    const gatewayMsg = errorMatch ? errorMatch[1] : status;
+
+    return {
+      success: false,
+      message: `Gateway error: ${gatewayMsg}`,
+      gateway_ref: null,
+      error: gatewayMsg
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      message: `Request error: ${error.message}`,
+      gateway_ref: null,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Escape special characters for XML
+ */
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
