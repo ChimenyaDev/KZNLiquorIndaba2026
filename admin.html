@@ -1976,8 +1976,9 @@ function mergeSheetData(sheetRows) {
     const existing = localMap[row.ref] || {};
     return {
       ...row,
-      // Preserve notification history which only lives locally
+      // Preserve notification history and check-in data which only live locally
       notificationsSent: existing.notificationsSent || [],
+      checkedInDays: existing.checkedInDays || {},
       synced: true
     };
   });
@@ -2046,6 +2047,10 @@ async function syncFromSheet() {
       mergeSheetData(normalised);
       console.log('After merge:', getDelegates().length); // should be 8
       refreshAll();
+      // If the check-in view is currently active, re-render it too
+      if (document.getElementById('view-checkin')?.classList.contains('active')) {
+        renderCheckinView();
+      }
     } catch(err) {
       console.error('mergeSheetData failed:', err);
     }
@@ -2774,10 +2779,11 @@ function renderCheckinTable() {
 }
 
 function doCheckin(ref) {
+  const now = new Date().toISOString();
   const checkins = getCheckinData();
   const key = currentCheckinDay + '_' + ref;
   checkins[key] = {
-    time: new Date().toISOString(),
+    time: now,
     by: currentUser?.name || 'Registration Desk',
     day: currentCheckinDay
   };
@@ -2788,15 +2794,55 @@ function doCheckin(ref) {
   const updated = delegates.map(d => {
     if (d.ref === ref) {
       const checkedDays = d.checkedInDays || {};
-      checkedDays[currentCheckinDay] = new Date().toISOString();
+      checkedDays[currentCheckinDay] = now;
       return { ...d, checkedInDays };
     }
     return d;
   });
   saveDelegates(updated);
 
+  // Immediately update the clicked row in the DOM for instant feedback
+  const timeStr = new Date(now).toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'});
+  const rows = document.querySelectorAll('#checkinTableBody tr');
+  rows.forEach(row => {
+    const btn = row.querySelector('.do-checkin');
+    if (btn && btn.getAttribute('onclick') === `doCheckin('${ref}')`) {
+      row.classList.add('checkin-row-checked');
+      const statusCell = row.cells[5];
+      if (statusCell) statusCell.innerHTML = `<span class="badge badge-checked-in">✓ Checked In</span>`;
+      const timeCell = row.cells[6];
+      if (timeCell) timeCell.innerHTML = `<div style="font-size:0.83rem;font-weight:600;color:var(--green);">${timeStr}</div><div class="checkin-time">By ${currentUser?.name || 'Registration Desk'}</div>`;
+      const actionCell = row.cells[7];
+      if (actionCell) actionCell.innerHTML = `<button class="checkin-btn undo-checkin" onclick="undoCheckin('${ref}')">✕ Undo</button>`;
+    }
+  });
+
+  // Update the stat counters immediately
+  const ciChecked = parseInt(document.getElementById('ciStatChecked').textContent || '0') + 1;
+  const ciAbsent = parseInt(document.getElementById('ciStatAbsent').textContent || '0') - 1;
+  document.getElementById('ciStatChecked').textContent = ciChecked;
+  document.getElementById('ciStatAbsent').textContent = Math.max(0, ciAbsent);
+
+  // Update tab stats
+  ['day1','day2'].forEach(d => {
+    const exp = getDelegates().filter(x => (x.days||[]).includes(d)).length;
+    const ch = Object.keys(getCheckinData()).filter(k => k.startsWith(d + '_')).length;
+    const el = document.getElementById('checkinTabStats-' + d);
+    if (el) el.textContent = `${ch}/${exp} checked in`;
+  });
+
+  // Update sidebar badge
+  const badge = document.getElementById('checkinBadge');
+  if (badge) {
+    const total = Object.keys(checkins).length;
+    badge.textContent = total;
+    badge.style.display = total > 0 ? '' : 'none';
+  }
+
   showToast('✓ Delegate checked in successfully');
-  renderCheckinView();
+
+  // Full re-render in the background to keep report section in sync
+  renderCheckinReport();
 }
 
 function undoCheckin(ref) {
