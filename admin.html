@@ -2840,14 +2840,14 @@ function renderCheckinTable() {
   if (statusFilter === 'checked') rows = rows.filter(d => checkins[day + '_' + d.ref]);
   else if (statusFilter === 'pending') rows = rows.filter(d => !checkins[day + '_' + d.ref]);
 
-  // Sort: not-checked-in first, then checked-in (by check-in time desc)
+  // Sort: checked-in first (most recent at top), then not-checked-in alphabetically
   rows.sort((a, b) => {
     const ca = checkins[day + '_' + a.ref];
     const cb = checkins[day + '_' + b.ref];
-    if (!ca && !cb) return (a.lastName || '').localeCompare(b.lastName || '');
-    if (!ca) return -1;
-    if (!cb) return 1;
-    return new Date(cb.time) - new Date(ca.time);
+    if (ca && cb) return new Date(cb.time) - new Date(ca.time);
+    if (ca) return -1;
+    if (cb) return 1;
+    return (a.lastName || '').localeCompare(b.lastName || '');
   });
 
   const total = rows.length;
@@ -3020,7 +3020,12 @@ function doCheckin(ref) {
         return d;
       });
       saveDelegates(updated);
- 
+
+      checkinPage = 1;
+      // If filter is set to "pending only", clear it so the newly checked-in delegate is visible
+      const ciFilter = document.getElementById('checkinStatusFilter');
+      if (ciFilter && ciFilter.value === 'pending') ciFilter.value = '';
+
       _refreshCheckinStats();
       renderCheckinTable();
       renderCheckinReport();
@@ -3055,7 +3060,12 @@ function undoCheckin(ref) {
         return d;
       });
       saveDelegates(updated);
- 
+
+      checkinPage = 1;
+      // If filter is set to "checked only", clear it so the delegate reappears
+      const ciFilter = document.getElementById('checkinStatusFilter');
+      if (ciFilter && ciFilter.value === 'checked') ciFilter.value = '';
+
       _refreshCheckinStats();
       renderCheckinTable();
       renderCheckinReport();
