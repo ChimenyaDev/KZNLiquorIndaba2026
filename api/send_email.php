@@ -20,7 +20,7 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/helpers.php';
-require_once __DIR__ . '/lib/email.php';
+require_once __DIR__ . '/lib/email_unified.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -92,7 +92,7 @@ if (!$text && $html) {
     $text = html_to_plain_text($html);
 }
 
-$result = send_smtp_email($to, $toName, $subject, $html, $text, $attachments);
+$result = send_email_unified($to, $toName, $subject, $html, $text, $attachments);
 
 log_communication([
     'type'    => 'email',

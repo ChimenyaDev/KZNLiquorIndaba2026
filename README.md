@@ -382,6 +382,64 @@ In `registration.html`, find the `<select id="delegateCategory">` and `<select i
 
 ---
 
+## Email Configuration
+
+The PHP API supports two email-sending methods. Set `EMAIL_METHOD` to choose between them.
+
+### Exchange Web Services (EWS) — Recommended
+
+EWS communicates directly with the Exchange server over HTTPS and is the preferred method
+when SMTP is blocked or unreliable.
+
+Set these environment variables (e.g. in Azure App Service → Configuration → Application settings):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `EMAIL_METHOD` | Sending method: `ews` or `smtp` | `ews` |
+| `EWS_ENDPOINT` | EWS ASMX URL | `https://mail.kznera.org.za/EWS/Exchange.asmx` |
+| `EWS_USERNAME` | Exchange mailbox username | `nto.vinkhumbo@kznera.org.za` |
+| `EWS_PASSWORD` | Exchange mailbox password (**required**) | _(empty)_ |
+| `EWS_FROM_EMAIL` | Sender address | `nto.vinkhumbo@kznera.org.za` |
+| `EWS_FROM_NAME` | Sender display name | `KZN Liquor Indaba 2026` |
+| `EWS_VERSION` | Exchange server version | `Exchange2013_SP1` |
+
+### SMTP — Fallback
+
+Used automatically when EWS fails, or when `EMAIL_METHOD=smtp`.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SMTP_HOST` | Mail server hostname | `mail.kznera.org.za` |
+| `SMTP_PORT` | SMTP port (`25`, `587`, or `465`) | `587` |
+| `SMTP_USERNAME` | SMTP account username | `nto.vinkhumbo@kznera.org.za` |
+| `SMTP_PASSWORD` | SMTP account password (**required**) | _(empty)_ |
+| `SMTP_FROM_EMAIL` | Sender address | `nto.vinkhumbo@kznera.org.za` |
+| `SMTP_FROM_NAME` | Sender display name | `KZN Liquor Indaba 2026` |
+| `SMTP_ENCRYPTION` | Encryption: `tls`, `ssl`, or _(empty)_ | `tls` |
+
+### Verbose Logging
+
+Set `EMAIL_DEBUG=1` to write step-by-step connection and SOAP details to the PHP error log.
+Useful for troubleshooting. **Do not leave enabled in production.**
+
+### Testing Email Configuration
+
+Run the diagnostic script from the CLI (SSH into the App Service or Kudu console):
+
+```bash
+php api/test_email.php --to=your.email@example.com
+```
+
+The script will:
+1. Check DNS resolution for the mail server
+2. Test TCP connectivity on ports 25, 587, 465, 443
+3. Verify EWS endpoint reachability
+4. Attempt to send a test email via EWS
+5. Attempt to send a test email via SMTP
+6. Print a recommendation based on the results
+
+---
+
 ## Committee Responsibilities (Invitations & Registration Committee)
 
 | Role | Name | Key Tasks |
