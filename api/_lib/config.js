@@ -20,7 +20,7 @@ export default {
     port:      parseInt(process.env.SMTP_PORT || '587', 10),
     username:  process.env.SMTP_USERNAME   || 'nto.vinkhumbo@kznera.org.za',
     password:  process.env.SMTP_PASSWORD   || '',
-    fromEmail: process.env.SMTP_FROM_EMAIL || 'nto.vinkhumbo@kznera.org.za',
+    fromEmail: process.env.SMTP_FROM_EMAIL || 'liquorindaba@kznera.org.za',
     fromName:  process.env.SMTP_FROM_NAME  || 'KZN Liquor Indaba 2026',
     encryption: process.env.SMTP_ENCRYPTION || 'tls' // 'tls' or 'ssl'
   },
