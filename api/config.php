@@ -14,7 +14,22 @@ define('SMS_USERNAME',     getenv('SMS_USERNAME')     ?: 'kzn_liquor_sa');
 define('SMS_PASSWORD',     getenv('SMS_PASSWORD')     ?: '');
 define('SMS_SENDER',       getenv('SMS_SENDER')       ?: 'KZNIndaba');
 
-// ── Email (SMTP / Exchange OWA) ───────────────────────────────────────────────
+// ── Email Configuration ───────────────────────────────────────────────────────
+// Email sending method: 'ews' (Exchange Web Services) or 'smtp'
+define('EMAIL_METHOD',     getenv('EMAIL_METHOD')     ?: 'ews');
+// Set to true (or EMAIL_DEBUG=1 env var) for verbose per-request email logging
+define('EMAIL_DEBUG',      filter_var(getenv('EMAIL_DEBUG') ?: false, FILTER_VALIDATE_BOOLEAN));
+
+// ── EWS (Exchange Web Services) ──────────────────────────────────────────────
+define('EWS_ENDPOINT',     getenv('EWS_ENDPOINT')     ?: 'https://mail.kznera.org.za/EWS/Exchange.asmx');
+define('EWS_USERNAME',     getenv('EWS_USERNAME')     ?: 'nto.vinkhumbo@kznera.org.za');
+// Set EWS_PASSWORD via the EWS_PASSWORD environment variable (required for sending).
+define('EWS_PASSWORD',     getenv('EWS_PASSWORD')     ?: '');
+define('EWS_FROM_EMAIL',   getenv('EWS_FROM_EMAIL')   ?: 'nto.vinkhumbo@kznera.org.za');
+define('EWS_FROM_NAME',    getenv('EWS_FROM_NAME')    ?: 'KZN Liquor Indaba 2026');
+define('EWS_VERSION',      getenv('EWS_VERSION')      ?: 'Exchange2013_SP1');
+
+// ── Email (SMTP — fallback) ───────────────────────────────────────────────────
 define('SMTP_HOST',        getenv('SMTP_HOST')        ?: 'mail.kznera.org.za');
 define('SMTP_PORT',        (int)(getenv('SMTP_PORT')  ?: 587));
 define('SMTP_USERNAME',    getenv('SMTP_USERNAME')    ?: 'nto.vinkhumbo@kznera.org.za');

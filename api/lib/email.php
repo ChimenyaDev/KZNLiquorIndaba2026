@@ -38,47 +38,71 @@ function send_smtp_email(
     $port       = SMTP_PORT;
     $encryption = SMTP_ENCRYPTION;
 
+    $debug = defined('EMAIL_DEBUG') && EMAIL_DEBUG;
+
+    if ($debug) {
+        // DNS resolution check
+        $resolved = gethostbyname($host);
+        $dnsOk    = $resolved !== $host;
+        error_log("[SMTP] DNS: $host → " . ($dnsOk ? $resolved : 'FAILED'));
+        error_log("[SMTP] Connecting to $host:$port (encryption=$encryption)");
+    }
+
     $errno  = 0;
     $errstr = '';
     $socket = @fsockopen($host, $port, $errno, $errstr, 15);
     if (!$socket) {
+        error_log("[SMTP] Connection failed: host=$host port=$port errno=$errno error=$errstr");
         return [
             'success' => false,
             'message' => "Cannot connect to SMTP server ($host:$port): $errstr",
             'error'   => $errstr,
+            'debug'   => "errno=$errno host=$host port=$port",
         ];
+    }
+
+    if ($debug) {
+        error_log("[SMTP] Connected to $host:$port");
     }
 
     stream_set_timeout($socket, 15);
 
     try {
-        smtp_expect($socket, '220', 'SMTP greeting');
+        $greeting = smtp_expect($socket, '220', 'SMTP greeting');
+        if ($debug) { error_log("[SMTP] ← $greeting"); }
 
         smtp_send($socket, "EHLO kznera.org.za");
-        smtp_read_multi($socket);
+        if ($debug) { error_log("[SMTP] → EHLO kznera.org.za"); }
+        $caps = smtp_read_multi($socket);
+        if ($debug) { error_log("[SMTP] ← " . implode(' | ', $caps)); }
 
         if ($encryption === 'tls') {
             smtp_send($socket, 'STARTTLS');
+            if ($debug) { error_log("[SMTP] → STARTTLS"); }
             smtp_expect($socket, '220', 'STARTTLS');
             if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
                 throw new RuntimeException('TLS negotiation failed');
             }
+            if ($debug) { error_log("[SMTP] TLS negotiated successfully"); }
             smtp_send($socket, "EHLO kznera.org.za");
             smtp_read_multi($socket);
         }
 
         smtp_send($socket, 'AUTH LOGIN');
+        if ($debug) { error_log("[SMTP] → AUTH LOGIN"); }
         smtp_expect($socket, '334', 'AUTH LOGIN');
         smtp_send($socket, base64_encode(SMTP_USERNAME));
         smtp_expect($socket, '334', 'AUTH username');
         smtp_send($socket, base64_encode(SMTP_PASSWORD));
         smtp_expect($socket, '235', 'AUTH password');
+        if ($debug) { error_log("[SMTP] AUTH LOGIN succeeded"); }
 
         smtp_send($socket, 'MAIL FROM:<' . SMTP_FROM_EMAIL . '>');
         smtp_expect($socket, '250', 'MAIL FROM');
 
         smtp_send($socket, 'RCPT TO:<' . $to . '>');
         smtp_expect($socket, '250', 'RCPT TO');
+        if ($debug) { error_log("[SMTP] RCPT TO <$to> accepted"); }
 
         smtp_send($socket, 'DATA');
         smtp_expect($socket, '354', 'DATA');
@@ -101,6 +125,7 @@ function send_smtp_email(
 
         fwrite($socket, $headers . $body . "\r\n.\r\n");
         smtp_expect($socket, '250', 'message accepted');
+        if ($debug) { error_log("[SMTP] Message accepted by server"); }
 
         smtp_send($socket, 'QUIT');
         fclose($socket);
@@ -108,6 +133,7 @@ function send_smtp_email(
         return ['success' => true, 'message' => 'Email sent successfully', 'error' => null];
 
     } catch (RuntimeException $e) {
+        error_log("[SMTP] Error: " . $e->getMessage());
         @fclose($socket);
         return ['success' => false, 'message' => $e->getMessage(), 'error' => $e->getMessage()];
     }
