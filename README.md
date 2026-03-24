@@ -413,7 +413,7 @@ The SMS gateway accepts South African phone numbers in the following formats:
 - `27821234567` (international without +)
 - `082 123 4567` (with spaces — automatically cleaned)
 
-All formats are automatically converted to `+27XXXXXXXXX` format before sending.
+All formats are automatically converted to `27XXXXXXXXX` format (without `+`) before sending, as required by the UMSG gateway.
 
 ### Testing SMS
 
