@@ -62,6 +62,8 @@ function send_umsg_sms(string $to, string $message): array {
         CURLOPT_TIMEOUT        => 15,
         CURLOPT_HTTPHEADER     => ['Content-Type: text/xml; charset=UTF-8'],
         CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_HTTPAUTH       => CURLAUTH_BASIC,
+        CURLOPT_USERPWD        => SMS_USERNAME . ':' . SMS_PASSWORD,
     ]);
 
     $response  = curl_exec($ch);
