@@ -8,20 +8,26 @@ import axios from 'axios';
 import config, { validateSmsConfig } from './config.js';
 
 /**
- * Normalize a South African mobile number to international format (+27…).
- * Accepts: 0821234567 / +27821234567 / 27821234567
+ * Normalize a South African mobile number to international format WITHOUT + prefix
+ * (as required by UMSG gateway).
+ *
+ * Accepts: 0821234567 / +27821234567 / 27821234567 / 082 123 4567
+ * Returns: 27821234567 (no + prefix)
  */
 function normalizeZaNumber(number) {
-  const cleaned = number.replace(/\s+/g, '');
-  
+  // Remove ALL non-numeric characters (spaces, dashes, parentheses, plus signs)
+  const cleaned = String(number).replace(/[^\d]/g, '');
+
+  // If starts with 0 and is 10 digits (local SA format)
   if (cleaned.startsWith('0') && cleaned.length === 10) {
-    return '+27' + cleaned.substring(1);
+    return '27' + cleaned.substring(1);
   }
-  
+
+  // If starts with 27 and is 11 digits (already in international format)
   if (cleaned.startsWith('27') && cleaned.length === 11) {
-    return '+' + cleaned;
+    return cleaned;
   }
-  
+
   return cleaned;
 }
 
@@ -115,8 +121,10 @@ export async function sendUmsgSms(to, message) {
       };
     }
 
-    const errorMatch = responseText.match(/<error>(.*?)<\/error>/i) || 
-                       responseText.match(/<description>(.*?)<\/description>/i);
+    // Handle both attribute-style <error description="..."/> and text-style <error>...</error>
+    const errorMatch = responseText.match(/<error[^>]*\bdescription="([^"]*)"/i) ||
+                       responseText.match(/<error[^>]*>([^<]*)<\/error>/i) ||
+                       responseText.match(/<description[^>]*>([^<]*)<\/description>/i);
     const gatewayMsg = errorMatch ? errorMatch[1] : gatewayStatus;
 
     return {

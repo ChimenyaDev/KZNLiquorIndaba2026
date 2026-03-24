@@ -10,18 +10,22 @@ if (!defined('SMS_GATEWAY_URL')) {
 }
 
 /**
- * Normalise a South African mobile number to international format (+27…).
- * Accepts: 0821234567 / +27821234567 / 27821234567
+ * Normalise a South African mobile number to international format WITHOUT + prefix
+ * (as required by UMSG gateway).
+ *
+ * Accepts: 0821234567 / +27821234567 / 27821234567 / 082 123 4567
+ * Returns: 27821234567 (no + prefix)
  */
 function normalise_za_number(string $number): string {
-    $number = preg_replace('/\s+/', '', $number);
-    if (str_starts_with($number, '0') && strlen($number) === 10) {
-        return '+27' . substr($number, 1);
+    // Remove ALL non-numeric characters (spaces, dashes, parentheses, plus signs)
+    $cleaned = preg_replace('/[^\d]/', '', $number);
+    if (str_starts_with($cleaned, '0') && strlen($cleaned) === 10) {
+        return '27' . substr($cleaned, 1);
     }
-    if (str_starts_with($number, '27') && strlen($number) === 11) {
-        return '+' . $number;
+    if (str_starts_with($cleaned, '27') && strlen($cleaned) === 11) {
+        return $cleaned;
     }
-    return $number;
+    return $cleaned;
 }
 
 /**
@@ -96,7 +100,13 @@ function send_umsg_sms(string $to, string $message): array {
         ];
     }
 
-    $gateway_msg = (string) ($xml_response->error ?? $xml_response->description ?? $status);
+    // Handle both attribute-style <error description="..."/> and element-style <error>...</error>
+    $error_el = $xml_response->error ?? null;
+    if ($error_el !== null) {
+        $gateway_msg = (string) ($error_el['description'] ?? $error_el) ?: $status;
+    } else {
+        $gateway_msg = (string) ($xml_response->description ?? $status);
+    }
     return [
         'success'     => false,
         'message'     => 'Gateway error: ' . $gateway_msg,
