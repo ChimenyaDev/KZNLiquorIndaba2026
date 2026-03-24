@@ -1,38 +1,40 @@
 /**
  * KZN Liquor Indaba 2026 — SMS Library (Node.js / Vercel)
  * 
- * Sends SMS via UMSG XML gateway at https://sms01.umsg.co.za/xml/send
+ * Sends SMS via UMSG gateway using GET with query parameters
+ * https://sms01.umsg.co.za/xml/send/?number1=...&message1=...
  */
 
 import axios from 'axios';
 import config, { validateSmsConfig } from './config.js';
 
 /**
- * Normalize a South African mobile number to international format WITHOUT + prefix
- * (as required by UMSG gateway).
- *
+ * Normalize a South African mobile number to format required by UMSG.
+ * UMSG accepts: 27XXXXXXXXX (11 digits, no + prefix)
+ * 
  * Accepts: 0821234567 / +27821234567 / 27821234567 / 082 123 4567
- * Returns: 27821234567 (no + prefix)
+ * Returns: 27821234567 (11 digits, no + prefix)
  */
 function normalizeZaNumber(number) {
-  // Remove ALL non-numeric characters (spaces, dashes, parentheses, plus signs)
+  // Remove ALL non-numeric characters
   const cleaned = String(number).replace(/[^\d]/g, '');
-
+  
   // If starts with 0 and is 10 digits (local SA format)
   if (cleaned.startsWith('0') && cleaned.length === 10) {
     return '27' + cleaned.substring(1);
   }
-
+  
   // If starts with 27 and is 11 digits (already in international format)
   if (cleaned.startsWith('27') && cleaned.length === 11) {
     return cleaned;
   }
-
+  
+  // Return cleaned number as-is
   return cleaned;
 }
 
 /**
- * Send an SMS through the UMSG XML Gateway.
+ * Send an SMS through the UMSG Gateway using GET with query parameters.
  * 
  * @param {string} to - Recipient phone number
  * @param {string} message - SMS body
@@ -51,99 +53,86 @@ export async function sendUmsgSms(to, message) {
 
   const destination = normalizeZaNumber(to);
 
-  // Build XML payload
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<sms>
-  <username>${escapeXml(config.sms.username)}</username>
-  <password>${escapeXml(config.sms.password)}</password>
-  <sender>${escapeXml(config.sms.sender)}</sender>
-  <msisdn>${escapeXml(destination)}</msisdn>
-  <message>${escapeXml(message)}</message>
-</sms>`;
+  // Build GET request URL with query parameters
+  // Format: https://sms01.umsg.co.za/xml/send/?number1=27821234567&message1=Your+message
+  const url = new URL(config.sms.gatewayUrl);
+  url.searchParams.append('number1', destination);
+  url.searchParams.append('message1', message);
 
-  // Log XML for debugging (with password masked)
-  const xmlForLogging = xml.replace(
-    /<password>.*?<\/password>/,
-    `<password>${config.sms.password ? '***' + config.sms.password.slice(-2) : 'EMPTY'}</password>`
-  );
-  console.log('Sending SMS XML:', xmlForLogging);
-  console.log('Password length being sent:', config.sms.password ? config.sms.password.length : 0);
+  console.log('Sending SMS via UMSG GET:', {
+    destination,
+    messageLength: message.length,
+    url: url.toString().replace(/message1=[^&]*/, 'message1=***')
+  });
 
   try {
+    // Use HTTP Basic Auth
     const credentials = Buffer.from(`${config.sms.username}:${config.sms.password}`).toString('base64');
-    const response = await axios.post(config.sms.gatewayUrl, xml, {
+    
+    const response = await axios.get(url.toString(), {
       headers: {
-        'Content-Type': 'text/xml; charset=UTF-8',
         'Authorization': `Basic ${credentials}`
       },
       timeout: 15000,
       validateStatus: function (status) {
-        // Don't throw on any status, we'll handle it ourselves
-        return true;
+        return true; // Don't throw on any status
       }
     });
 
     console.log('UMSG Response Status:', response.status);
     console.log('UMSG Response Data:', response.data);
 
-    // If we get 401, log more details
+    // Handle 401
     if (response.status === 401) {
-      console.error('❌ 401 Unauthorized - Credentials rejected by UMSG gateway');
-      console.error('Gateway URL:', config.sms.gatewayUrl);
-      console.error('Username being sent:', config.sms.username);
-      console.error('Password set:', !!config.sms.password);
-      console.error('Password length:', config.sms.password ? config.sms.password.length : 0);
-
+      console.error('❌ 401 Unauthorized - Credentials rejected');
       return {
         success: false,
-        message: 'SMS gateway authentication failed (401). Please verify SMS_USERNAME and SMS_PASSWORD in Vercel environment variables.',
+        message: 'SMS gateway authentication failed (401)',
         gateway_ref: null,
-        error: '401 Unauthorized - Invalid credentials'
+        error: '401 Unauthorized'
       };
     }
 
-    // Parse XML response for successful requests
+    // Parse XML response
     const responseText = typeof response.data === 'string' ? response.data : String(response.data);
-    const statusMatch = responseText.match(/<status>(.*?)<\/status>/i) || 
-                        responseText.match(/<Status>(.*?)<\/Status>/i);
-    const refMatch = responseText.match(/<msgid>(.*?)<\/msgid>/i) || 
-                     responseText.match(/<reference>(.*?)<\/reference>/i);
     
-    const gatewayStatus = (statusMatch ? statusMatch[1] : '').toUpperCase();
-    const ref = refMatch ? refMatch[1] : null;
+    // Check for submitresult with result="1" (success)
+    const submitMatch = responseText.match(/<submitresult[^>]*result="(\d+)"[^>]*\/>/i);
+    const keyMatch = responseText.match(/<submitresult[^>]*key="([^"]+)"[^>]*\/>/i);
+    const actionMatch = responseText.match(/<submitresult[^>]*action="([^"]+)"[^>]*\/>/i);
+    const errorMatch = responseText.match(/<submitresult[^>]*error="(\d+)"[^>]*\/>/i);
 
-    if (['OK', 'ACCEPTED', '0', 'SUCCESS'].includes(gatewayStatus)) {
+    const result = submitMatch ? submitMatch[1] : '0';
+    const key = keyMatch ? keyMatch[1] : null;
+    const action = actionMatch ? actionMatch[1] : '';
+    const errorCode = errorMatch ? errorMatch[1] : '0';
+
+    if (result === '1' && errorCode === '0') {
       return {
         success: true,
-        message: 'SMS sent successfully',
-        gateway_ref: ref,
+        message: `SMS ${action} successfully`,
+        gateway_ref: key,
         error: null
       };
     }
 
-    // Handle both attribute-style <error description="..."/> and text-style <error>...</error>
-    const errorMatch = responseText.match(/<error[^>]*\bdescription="([^"]*)"/i) ||
-                       responseText.match(/<error[^>]*>([^<]*)<\/error>/i) ||
-                       responseText.match(/<description[^>]*>([^<]*)<\/description>/i);
-    const gatewayMsg = errorMatch ? errorMatch[1] : gatewayStatus;
+    // Check for error description
+    const errorDescMatch = responseText.match(/<error[^>]*description="([^"]+)"[^>]*\/>/i);
+    const errorMsg = errorDescMatch ? errorDescMatch[1] : `Gateway error (result=${result}, error=${errorCode})`;
 
     return {
       success: false,
-      message: `Gateway error: ${gatewayMsg}`,
+      message: `Gateway error: ${errorMsg}`,
       gateway_ref: null,
-      error: gatewayMsg
+      error: errorMsg
     };
 
   } catch (error) {
-    const errorDetails = {
+    console.error('UMSG SMS Error:', {
       message: error.message,
       code: error.code,
-      response: error.response?.data,
-      status: error.response?.status,
-      statusText: error.response?.statusText
-    };
-
-    console.error('UMSG SMS Error:', errorDetails);
+      status: error.response?.status
+    });
 
     return {
       success: false,
@@ -152,17 +141,4 @@ export async function sendUmsgSms(to, message) {
       error: error.message
     };
   }
-}
-
-/**
- * Escape special characters for XML (including # and other special chars)
- */
-function escapeXml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
