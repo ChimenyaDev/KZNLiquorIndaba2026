@@ -5,7 +5,7 @@
  */
 
 import axios from 'axios';
-import config from './config.js';
+import config, { validateSmsConfig } from './config.js';
 
 /**
  * Normalize a South African mobile number to international format (+27…).
@@ -33,6 +33,16 @@ function normalizeZaNumber(number) {
  * @returns {Promise<{success: boolean, message: string, gateway_ref: string|null, error: string|null}>}
  */
 export async function sendUmsgSms(to, message) {
+  // Validate config first
+  if (!validateSmsConfig()) {
+    return {
+      success: false,
+      message: 'SMS service is not properly configured',
+      gateway_ref: null,
+      error: 'Missing SMS_PASSWORD environment variable'
+    };
+  }
+
   const destination = normalizeZaNumber(to);
 
   // Build XML payload

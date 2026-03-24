@@ -5,7 +5,7 @@
   "type": "module",
   "description": "KZN Liquor Indaba 2026 — Vercel serverless API",
   "dependencies": {
-    "axios": "^1.13.5",
+    "axios": "^1.6.7",
     "nodemailer": "^7.0.11",
     "resend": "^3.2.0"
   }

@@ -43,3 +43,15 @@ export default {
   // Rate limiting
   rateLimitPerMinute: parseInt(process.env.RATE_LIMIT_PER_MINUTE || '30', 10)
 };
+
+/**
+ * Validate that required SMS credentials are present.
+ * @returns {boolean} true if SMS is properly configured
+ */
+export function validateSmsConfig() {
+  if (!process.env.SMS_PASSWORD) {
+    console.warn('⚠️  SMS_PASSWORD environment variable is not set');
+    return false;
+  }
+  return true;
+}
