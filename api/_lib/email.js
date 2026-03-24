@@ -29,6 +29,16 @@ export async function sendSmtpEmail(to, toName, subject, html, text, attachments
     auth: {
       user: username,
       pass: password
+    },
+    connectionTimeout: 10000,  // 10 seconds — fail fast on unreachable hosts
+    greetingTimeout:   10000,  // 10 seconds — time allowed for SMTP greeting
+    socketTimeout:     15000,  // 15 seconds — idle socket timeout
+    pool:              true,   // reuse connections across calls
+    maxConnections:    5,
+    maxMessages:       100,
+    tls: {
+      rejectUnauthorized: false // permit self-signed certs on the mail server;
+                                // remove this once a valid CA-signed cert is installed
     }
   });
 
