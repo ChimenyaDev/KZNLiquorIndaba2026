@@ -48,6 +48,9 @@ export function validateEmail(email) {
  * @returns {boolean}
  */
 export function validatePhone(phone) {
+  if (typeof phone !== 'string' || phone.length === 0) {
+    return false;
+  }
   const clean = phone.replace(/[\s\-()+]/g, '');
   return /^(27|0)[6-9]\d{8}$/.test(clean);
 }
