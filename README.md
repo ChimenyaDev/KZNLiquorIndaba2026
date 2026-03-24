@@ -382,6 +382,54 @@ In `registration.html`, find the `<select id="delegateCategory">` and `<select i
 
 ---
 
+## SMS Configuration (Vercel Deployment)
+
+The application uses UMSG SMS gateway for sending notifications. You must configure the following environment variables in Vercel.
+
+### Setting Environment Variables in Vercel
+
+1. Go to your Vercel project dashboard
+2. Click on **Settings** → **Environment Variables**
+3. Add the following variables:
+
+| Variable Name | Value | Description |
+|---------------|-------|-------------|
+| `SMS_GATEWAY_URL` | `https://sms01.umsg.co.za/xml/send` | UMSG SMS gateway endpoint |
+| `SMS_USERNAME` | `kzn_liquor_sa` | UMSG gateway username |
+| `SMS_PASSWORD` | _(obtain from KZNERA IT department)_ | UMSG gateway password |
+| `SMS_SENDER` | `KZNIndaba` | SMS sender name |
+
+4. Click **Save** for each variable
+5. **Important**: After adding environment variables, you must **redeploy** your application:
+   - Go to **Deployments** tab
+   - Click on the latest deployment
+   - Click **Redeploy** → **Redeploy with existing Build Cache**
+
+### Phone Number Format
+
+The SMS gateway accepts South African phone numbers in the following formats:
+- `0821234567` (local format with leading 0)
+- `+27821234567` (international format)
+- `27821234567` (international without +)
+- `082 123 4567` (with spaces — automatically cleaned)
+
+All formats are automatically converted to `+27XXXXXXXXX` format before sending.
+
+### Testing SMS
+
+After setting up the environment variables and redeploying, test the SMS functionality:
+
+1. Open `admin.html`
+2. Select one or more delegates
+3. Click **Send Notification**
+4. Choose **SMS** as the notification type
+5. Enter a test message
+6. Click **Send**
+
+Check the browser console and Vercel function logs for detailed error messages if the SMS fails.
+
+---
+
 ## Email Configuration
 
 The PHP API supports two email-sending methods. Set `EMAIL_METHOD` to choose between them.

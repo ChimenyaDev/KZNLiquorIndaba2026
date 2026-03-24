@@ -45,8 +45,25 @@ export async function sendUmsgSms(to, message) {
 
   const destination = normalizeZaNumber(to);
 
+  // Log the request for debugging (without exposing password)
+  console.log('Sending SMS via UMSG:', {
+    gateway: config.sms.gatewayUrl,
+    username: config.sms.username,
+    sender: config.sms.sender,
+    destination: destination,
+    messageLength: message.length,
+    passwordSet: config.sms.password ? 'Yes' : 'No'
+  });
+
   // Build XML payload
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<sms>\n  <username>${escapeXml(config.sms.username)}</username>\n  <password>${escapeXml(config.sms.password)}</password>\n  <sender>${escapeXml(config.sms.sender)}</sender>\n  <destination>${escapeXml(destination)}</destination>\n  <message>${escapeXml(message)}</message>\n</sms>`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<sms>
+  <username>${escapeXml(config.sms.username)}</username>
+  <password>${escapeXml(config.sms.password)}</password>
+  <sender>${escapeXml(config.sms.sender)}</sender>
+  <destination>${escapeXml(destination)}</destination>
+  <message>${escapeXml(message)}</message>
+</sms>`;
 
   try {
     const response = await axios.post(config.sms.gatewayUrl, xml, {
@@ -56,6 +73,8 @@ export async function sendUmsgSms(to, message) {
 
     // Parse XML response
     const responseText = response.data;
+    console.log('UMSG Gateway Response:', responseText);
+
     const statusMatch = responseText.match(/<status>(.*?)<\/status>/i) || 
                         responseText.match(/<Status>(.*?)<\/Status>/i);
     const refMatch = responseText.match(/<msgid>(.*?)<\/msgid>/i) || 
@@ -85,6 +104,17 @@ export async function sendUmsgSms(to, message) {
     };
 
   } catch (error) {
+    // Enhanced error logging
+    const errorDetails = {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText
+    };
+
+    console.error('UMSG SMS Error:', errorDetails);
+
     return {
       success: false,
       message: `Request error: ${error.message}`,
