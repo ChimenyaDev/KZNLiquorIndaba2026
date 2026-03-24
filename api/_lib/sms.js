@@ -64,8 +64,12 @@ export async function sendUmsgSms(to, message) {
   console.log('Password length being sent:', config.sms.password ? config.sms.password.length : 0);
 
   try {
+    const credentials = Buffer.from(`${config.sms.username}:${config.sms.password}`).toString('base64');
     const response = await axios.post(config.sms.gatewayUrl, xml, {
-      headers: { 'Content-Type': 'text/xml; charset=UTF-8' },
+      headers: {
+        'Content-Type': 'text/xml; charset=UTF-8',
+        'Authorization': `Basic ${credentials}`
+      },
       timeout: 15000,
       validateStatus: function (status) {
         // Don't throw on any status, we'll handle it ourselves
