@@ -10,6 +10,7 @@ import { sendSmtpEmail, buildEmailHtml } from './_lib/email.js';
 import { setCorsHeaders, validateEmail, validatePhone, applyTemplateVars, checkRateLimit, logCommunication } from './_lib/helpers.js';
 
 export default async function handler(req, res) {
+  try {
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Method not allowed' });
@@ -168,4 +169,13 @@ export default async function handler(req, res) {
     failed,
     errors
   });
+
+  } catch (error) {
+    console.error('Notification handler error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'A server error has occurred',
+      error: error.message || 'Unknown error'
+    });
+  }
 }
