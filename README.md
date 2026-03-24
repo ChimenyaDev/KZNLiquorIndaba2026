@@ -403,9 +403,30 @@ Set these environment variables (e.g. in Azure App Service → Configuration →
 | `EWS_FROM_NAME` | Sender display name | `KZN Liquor Indaba 2026` |
 | `EWS_VERSION` | Exchange server version | `Exchange2013_SP1` |
 
+### Resend (Recommended)
+
+[Resend](https://resend.com) is a modern transactional email service with excellent Vercel support and a generous free tier.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RESEND_API_KEY` | Resend API key (get from Resend dashboard) | _(empty)_ |
+| `RESEND_FROM_EMAIL` | Sender email address (must be on verified domain) | `nto.vinkhumbo@kznera.org.za` |
+| `RESEND_FROM_NAME` | Sender display name | `KZN Liquor Indaba 2026` |
+
+**Setup Instructions:** See [`docs/RESEND-SETUP.md`](docs/RESEND-SETUP.md) for detailed setup guide including DNS configuration.
+
+**Why Resend?**
+- ✅ Free tier: 3,000 emails/month
+- ✅ Built for serverless (no IP whitelisting needed)
+- ✅ Send from your own domain (`@kznera.org.za`)
+- ✅ Better deliverability than direct SMTP
+- ✅ No cost for events like this
+
+---
+
 ### SMTP — Fallback
 
-Used automatically when EWS fails, or when `EMAIL_METHOD=smtp`.
+Used automatically when Resend is not configured, or when `EMAIL_METHOD=smtp`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -418,6 +439,18 @@ Used automatically when EWS fails, or when `EMAIL_METHOD=smtp`.
 | `SMTP_ENCRYPTION` | Encryption: `tls`, `ssl`, or _(empty)_ | `tls` |
 
 ### Troubleshooting Email Issues
+
+#### Using Resend (Recommended)
+
+If you're using Resend:
+1. Check that `RESEND_API_KEY` is set in Vercel environment variables
+2. Verify your domain is verified in Resend dashboard
+3. Check Resend logs: [https://resend.com/emails](https://resend.com/emails)
+4. Make sure the sender email matches your verified domain
+
+If Resend is not configured, the system falls back to SMTP automatically.
+
+---
 
 #### Connection Timeout Errors
 

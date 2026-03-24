@@ -14,14 +14,21 @@ export default {
     sender:     process.env.SMS_SENDER      || 'KZNIndaba'
   },
 
-  // Email (SMTP)
+  // Email (Resend - Primary)
+  resend: {
+    apiKey:    process.env.RESEND_API_KEY    || '',
+    fromEmail: process.env.RESEND_FROM_EMAIL || 'nto.vinkhumbo@kznera.org.za',
+    fromName:  process.env.RESEND_FROM_NAME  || 'KZN Liquor Indaba 2026'
+  },
+
+  // Email (SMTP - Fallback)
   smtp: {
-    host:      process.env.SMTP_HOST       || 'mail.kznera.org.za',
-    port:      parseInt(process.env.SMTP_PORT || '587', 10),
-    username:  process.env.SMTP_USERNAME   || 'nto.vinkhumbo@kznera.org.za',
-    password:  process.env.SMTP_PASSWORD   || '',
-    fromEmail: process.env.SMTP_FROM_EMAIL || 'liquorindaba@kznera.org.za',
-    fromName:  process.env.SMTP_FROM_NAME  || 'KZN Liquor Indaba 2026',
+    host:       process.env.SMTP_HOST       || 'mail.kznera.org.za',
+    port:       parseInt(process.env.SMTP_PORT || '587', 10),
+    username:   process.env.SMTP_USERNAME   || 'nto.vinkhumbo@kznera.org.za',
+    password:   process.env.SMTP_PASSWORD   || '',
+    fromEmail:  process.env.SMTP_FROM_EMAIL || 'nto.vinkhumbo@kznera.org.za',
+    fromName:   process.env.SMTP_FROM_NAME  || 'KZN Liquor Indaba 2026',
     encryption: process.env.SMTP_ENCRYPTION || 'tls' // 'tls' or 'ssl'
   },
 
