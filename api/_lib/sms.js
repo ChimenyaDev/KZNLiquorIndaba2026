@@ -57,7 +57,7 @@ export async function sendUmsgSms(to, message) {
   <username>${escapeXml(config.sms.username)}</username>
   <password>${escapeXml(config.sms.password)}</password>
   <sender>${escapeXml(config.sms.sender)}</sender>
-  <destination>${escapeXml(destination)}</destination>
+  <msisdn>${escapeXml(destination)}</msisdn>
   <message>${escapeXml(message)}</message>
 </sms>`;
 

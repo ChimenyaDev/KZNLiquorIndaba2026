@@ -44,7 +44,7 @@ function send_umsg_sms(string $to, string $message): array {
             '<username>%s</username>' .
             '<password>%s</password>' .
             '<sender>%s</sender>' .
-            '<destination>%s</destination>' .
+            '<msisdn>%s</msisdn>' .
             '<message>%s</message>' .
         '</sms>',
         htmlspecialchars(SMS_USERNAME,  ENT_XML1, 'UTF-8'),
