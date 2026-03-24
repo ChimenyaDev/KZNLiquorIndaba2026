@@ -3,6 +3,8 @@
  * KZN Liquor Indaba 2026 — SMS Library
  *
  * Provides send_umsg_sms() for use by send_sms.php and notify.php.
+ * Sends SMS via UMSG gateway using GET with query parameters:
+ * https://sms01.umsg.co.za/xml/send/?number1=...&message1=...
  */
 
 if (!defined('SMS_GATEWAY_URL')) {
@@ -29,7 +31,7 @@ function normalise_za_number(string $number): string {
 }
 
 /**
- * Send an SMS through the UMSG XML Gateway.
+ * Send an SMS through the UMSG Gateway using GET with query parameters.
  *
  * @param  string $to      Recipient phone number
  * @param  string $message SMS body
@@ -38,36 +40,25 @@ function normalise_za_number(string $number): string {
 function send_umsg_sms(string $to, string $message): array {
     $destination = normalise_za_number($to);
 
-    $xml = sprintf(
-        '<?xml version="1.0" encoding="UTF-8"?>' .
-        '<sms>' .
-            '<username>%s</username>' .
-            '<password>%s</password>' .
-            '<sender>%s</sender>' .
-            '<msisdn>%s</msisdn>' .
-            '<message>%s</message>' .
-        '</sms>',
-        htmlspecialchars(SMS_USERNAME,  ENT_XML1, 'UTF-8'),
-        htmlspecialchars(SMS_PASSWORD,  ENT_XML1, 'UTF-8'),
-        htmlspecialchars(SMS_SENDER,    ENT_XML1, 'UTF-8'),
-        htmlspecialchars($destination,  ENT_XML1, 'UTF-8'),
-        htmlspecialchars($message,      ENT_XML1, 'UTF-8')
-    );
+    // Build GET request URL with query parameters
+    // Format: https://sms01.umsg.co.za/xml/send/?number1=27821234567&message1=Your+message
+    $url = rtrim(SMS_GATEWAY_URL, '/') . '/?' . http_build_query([
+        'number1'  => $destination,
+        'message1' => $message,
+    ]);
 
-    $ch = curl_init(SMS_GATEWAY_URL);
+    $ch = curl_init($url);
     curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $xml,
+        CURLOPT_HTTPGET        => true,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 15,
-        CURLOPT_HTTPHEADER     => ['Content-Type: text/xml; charset=UTF-8'],
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_HTTPAUTH       => CURLAUTH_BASIC,
         CURLOPT_USERPWD        => SMS_USERNAME . ':' . SMS_PASSWORD,
     ]);
 
-    $response  = curl_exec($ch);
-    $curl_err  = curl_error($ch);
+    $response = curl_exec($ch);
+    $curl_err = curl_error($ch);
     curl_close($ch);
 
     if ($curl_err) {
@@ -79,36 +70,32 @@ function send_umsg_sms(string $to, string $message): array {
         ];
     }
 
-    try {
-        $xml_response = new SimpleXMLElement((string) $response);
-    } catch (Exception $e) {
-        return [
-            'success'     => false,
-            'message'     => 'Invalid gateway response',
-            'gateway_ref' => null,
-            'error'       => (string) $response,
-        ];
-    }
+    $response_text = (string) $response;
 
-    $status = strtoupper((string) ($xml_response->status ?? $xml_response->Status ?? ''));
-    $ref    = (string) ($xml_response->msgid ?? $xml_response->reference ?? '');
+    // Check for submitresult with result="1" (success)
+    preg_match('/<submitresult[^>]*result="(\d+)"[^>]*\/>/i',  $response_text, $result_match);
+    preg_match('/<submitresult[^>]*key="([^"]+)"[^>]*\/>/i',   $response_text, $key_match);
+    preg_match('/<submitresult[^>]*action="([^"]+)"[^>]*\/>/i', $response_text, $action_match);
+    preg_match('/<submitresult[^>]*error="(\d+)"[^>]*\/>/i',   $response_text, $error_match);
 
-    if (in_array($status, ['OK', 'ACCEPTED', '0', 'SUCCESS'], true)) {
+    $result     = $result_match[1]  ?? '0';
+    $key        = $key_match[1]     ?? null;
+    $action     = $action_match[1]  ?? '';
+    $error_code = $error_match[1]   ?? '0';
+
+    if ($result === '1' && $error_code === '0') {
         return [
             'success'     => true,
-            'message'     => 'SMS sent successfully',
-            'gateway_ref' => $ref ?: null,
+            'message'     => 'SMS ' . $action . ' successfully',
+            'gateway_ref' => $key,
             'error'       => null,
         ];
     }
 
-    // Handle both attribute-style <error description="..."/> and element-style <error>...</error>
-    $error_el = $xml_response->error ?? null;
-    if ($error_el !== null) {
-        $gateway_msg = (string) ($error_el['description'] ?? $error_el) ?: $status;
-    } else {
-        $gateway_msg = (string) ($xml_response->description ?? $status);
-    }
+    // Check for error description
+    preg_match('/<error[^>]*description="([^"]+)"[^>]*\/>/i', $response_text, $err_desc_match);
+    $gateway_msg = $err_desc_match[1] ?? "Gateway error (result={$result}, error={$error_code})";
+
     return [
         'success'     => false,
         'message'     => 'Gateway error: ' . $gateway_msg,
