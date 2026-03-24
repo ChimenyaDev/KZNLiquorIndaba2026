@@ -1,14 +1,16 @@
 /**
  * KZN Liquor Indaba 2026 — Email Library (Node.js / Vercel)
  *
- * Provides sendSmtpEmail() and buildEmailHtml() for use by notify.js.
+ * Uses Resend API for reliable email delivery from Vercel.
+ * Falls back to SMTP if Resend is not configured.
  */
 
+import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import config from './config.js';
 
 /**
- * Send an email via SMTP using nodemailer.
+ * Send an email using Resend API (primary) or SMTP (fallback).
  *
  * @param {string} to          - Recipient address
  * @param {string} toName      - Recipient display name (may be empty)
@@ -19,6 +21,68 @@ import config from './config.js';
  * @returns {Promise<{success: boolean, message: string, error: string|null}>}
  */
 export async function sendSmtpEmail(to, toName, subject, html, text, attachments = []) {
+  // Try Resend first if API key is configured
+  if (config.resend.apiKey) {
+    return await sendViaResend(to, toName, subject, html, text, attachments);
+  }
+
+  // Fallback to SMTP if Resend is not configured
+  console.log('[Email] Resend not configured, falling back to SMTP');
+  return await sendViaSMTP(to, toName, subject, html, text, attachments);
+}
+
+/**
+ * Send email via Resend API.
+ */
+async function sendViaResend(to, toName, subject, html, text, attachments) {
+  const resend = new Resend(config.resend.apiKey);
+  const { fromEmail, fromName } = config.resend;
+
+  try {
+    const emailData = {
+      from: fromName ? `${fromName} <${fromEmail}>` : fromEmail,
+      to: toName ? `${toName} <${to}>` : to,
+      subject,
+      html: html || undefined,
+      text: text || undefined
+    };
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      emailData.attachments = attachments.map(att => ({
+        filename: att.filename,
+        content: att.content // Resend accepts base64 strings directly
+      }));
+    }
+
+    const response = await resend.emails.send(emailData);
+
+    if (response.error) {
+      console.error('[Resend] Error:', response.error);
+      return {
+        success: false,
+        message: `Resend error: ${response.error.message}`,
+        error: response.error.message
+      };
+    }
+
+    console.log('[Resend] Email sent successfully:', response.data?.id);
+    return { success: true, message: 'Email sent successfully via Resend', error: null };
+
+  } catch (error) {
+    console.error('[Resend] Exception:', error);
+    return {
+      success: false,
+      message: `Resend error: ${error.message}`,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Send email via SMTP (fallback method).
+ */
+async function sendViaSMTP(to, toName, subject, html, text, attachments) {
   const { host, port, username, password, fromEmail, fromName, encryption } = config.smtp;
 
   const transporter = nodemailer.createTransport({
@@ -37,8 +101,7 @@ export async function sendSmtpEmail(to, toName, subject, html, text, attachments
     maxConnections:    5,
     maxMessages:       100,
     tls: {
-      rejectUnauthorized: false // permit self-signed certs on the mail server;
-                                // remove this once a valid CA-signed cert is installed
+      rejectUnauthorized: false // permit self-signed certs on the mail server
     }
   });
 
@@ -58,7 +121,7 @@ export async function sendSmtpEmail(to, toName, subject, html, text, attachments
 
   try {
     await transporter.sendMail(mailOptions);
-    return { success: true, message: 'Email sent successfully', error: null };
+    return { success: true, message: 'Email sent successfully via SMTP', error: null };
   } catch (error) {
     return { success: false, message: `SMTP error: ${error.message}`, error: error.message };
   }
