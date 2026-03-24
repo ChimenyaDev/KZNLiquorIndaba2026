@@ -417,6 +417,34 @@ Used automatically when EWS fails, or when `EMAIL_METHOD=smtp`.
 | `SMTP_FROM_NAME` | Sender display name | `KZN Liquor Indaba 2026` |
 | `SMTP_ENCRYPTION` | Encryption: `tls`, `ssl`, or _(empty)_ | `tls` |
 
+### Troubleshooting Email Issues
+
+#### Connection Timeout Errors
+
+If you see `connect ETIMEDOUT` errors in the logs:
+
+1. **Verify SMTP settings** are correct in Vercel environment variables
+2. **Check firewall rules** - Vercel IPs must be whitelisted on your mail server
+   - See `docs/IT-SETUP-VERCEL-SMTP.md` for detailed instructions
+3. **Test the connection** using the diagnostic endpoint:
+   ```
+   https://[your-domain]/api/test-email.js?send=true&recipient=your@email.com
+   ```
+4. **Alternative ports**: If port 587 is blocked, try port 465 with SSL:
+   - Set `SMTP_PORT=465`
+   - Set `SMTP_ENCRYPTION=ssl`
+
+#### Authentication Errors
+
+If you see authentication failures:
+- Verify `SMTP_USERNAME` and `SMTP_PASSWORD` are correct
+- Check if the account requires app-specific passwords
+- Ensure the account has permission to send via SMTP
+
+#### General Debugging
+
+Enable debug logging by checking the communication logs in the admin panel under the "Logs" section.
+
 ### Verbose Logging
 
 Set `EMAIL_DEBUG=1` to write step-by-step connection and SOAP details to the PHP error log.
