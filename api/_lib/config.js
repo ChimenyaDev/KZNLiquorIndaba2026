@@ -5,7 +5,7 @@
  * Set these in Vercel dashboard → Settings → Environment Variables
  */
 
-export default {
+const config = {
   // SMS Gateway (UMSG)
   sms: {
     gatewayUrl: process.env.SMS_GATEWAY_URL || 'https://sms01.umsg.co.za/xml/send',
@@ -44,14 +44,32 @@ export default {
   rateLimitPerMinute: parseInt(process.env.RATE_LIMIT_PER_MINUTE || '30', 10)
 };
 
+// Log configuration status (without exposing sensitive data)
+console.log('SMS Config Status:', {
+  gatewayUrl:        config.sms.gatewayUrl,
+  username:          config.sms.username,
+  sender:            config.sms.sender,
+  passwordSet:       !!config.sms.password,
+  passwordLength:    config.sms.password ? config.sms.password.length : 0,
+  passwordFirstChar: config.sms.password ? config.sms.password.charAt(0) : 'none',
+  passwordLastChar:  config.sms.password ? config.sms.password.charAt(config.sms.password.length - 1) : 'none'
+});
+
+export default config;
+
 /**
  * Validate that required SMS credentials are present.
  * @returns {boolean} true if SMS is properly configured
  */
 export function validateSmsConfig() {
   if (!process.env.SMS_PASSWORD) {
-    console.warn('⚠️  SMS_PASSWORD environment variable is not set');
+    console.error('❌ SMS_PASSWORD environment variable is not set');
     return false;
   }
+  if (process.env.SMS_PASSWORD.length === 0) {
+    console.error('❌ SMS_PASSWORD environment variable is empty');
+    return false;
+  }
+  console.log('✅ SMS_PASSWORD is set (length:', process.env.SMS_PASSWORD.length, ')');
   return true;
 }

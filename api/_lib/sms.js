@@ -45,16 +45,6 @@ export async function sendUmsgSms(to, message) {
 
   const destination = normalizeZaNumber(to);
 
-  // Log the request for debugging (without exposing password)
-  console.log('Sending SMS via UMSG:', {
-    gateway: config.sms.gatewayUrl,
-    username: config.sms.username,
-    sender: config.sms.sender,
-    destination: destination,
-    messageLength: message.length,
-    passwordSet: config.sms.password ? 'Yes' : 'No'
-  });
-
   // Build XML payload
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sms>
@@ -65,25 +55,54 @@ export async function sendUmsgSms(to, message) {
   <message>${escapeXml(message)}</message>
 </sms>`;
 
+  // Log XML for debugging (with password masked)
+  const xmlForLogging = xml.replace(
+    /<password>.*?<\/password>/,
+    `<password>${config.sms.password ? '***' + config.sms.password.slice(-2) : 'EMPTY'}</password>`
+  );
+  console.log('Sending SMS XML:', xmlForLogging);
+  console.log('Password length being sent:', config.sms.password ? config.sms.password.length : 0);
+
   try {
     const response = await axios.post(config.sms.gatewayUrl, xml, {
       headers: { 'Content-Type': 'text/xml; charset=UTF-8' },
-      timeout: 15000
+      timeout: 15000,
+      validateStatus: function (status) {
+        // Don't throw on any status, we'll handle it ourselves
+        return true;
+      }
     });
 
-    // Parse XML response
-    const responseText = response.data;
-    console.log('UMSG Gateway Response:', responseText);
+    console.log('UMSG Response Status:', response.status);
+    console.log('UMSG Response Data:', response.data);
 
+    // If we get 401, log more details
+    if (response.status === 401) {
+      console.error('❌ 401 Unauthorized - Credentials rejected by UMSG gateway');
+      console.error('Gateway URL:', config.sms.gatewayUrl);
+      console.error('Username being sent:', config.sms.username);
+      console.error('Password set:', !!config.sms.password);
+      console.error('Password length:', config.sms.password ? config.sms.password.length : 0);
+
+      return {
+        success: false,
+        message: 'SMS gateway authentication failed (401). Please verify SMS_USERNAME and SMS_PASSWORD in Vercel environment variables.',
+        gateway_ref: null,
+        error: '401 Unauthorized - Invalid credentials'
+      };
+    }
+
+    // Parse XML response for successful requests
+    const responseText = typeof response.data === 'string' ? response.data : String(response.data);
     const statusMatch = responseText.match(/<status>(.*?)<\/status>/i) || 
                         responseText.match(/<Status>(.*?)<\/Status>/i);
     const refMatch = responseText.match(/<msgid>(.*?)<\/msgid>/i) || 
                      responseText.match(/<reference>(.*?)<\/reference>/i);
     
-    const status = (statusMatch ? statusMatch[1] : '').toUpperCase();
+    const gatewayStatus = (statusMatch ? statusMatch[1] : '').toUpperCase();
     const ref = refMatch ? refMatch[1] : null;
 
-    if (['OK', 'ACCEPTED', '0', 'SUCCESS'].includes(status)) {
+    if (['OK', 'ACCEPTED', '0', 'SUCCESS'].includes(gatewayStatus)) {
       return {
         success: true,
         message: 'SMS sent successfully',
@@ -94,7 +113,7 @@ export async function sendUmsgSms(to, message) {
 
     const errorMatch = responseText.match(/<error>(.*?)<\/error>/i) || 
                        responseText.match(/<description>(.*?)<\/description>/i);
-    const gatewayMsg = errorMatch ? errorMatch[1] : status;
+    const gatewayMsg = errorMatch ? errorMatch[1] : gatewayStatus;
 
     return {
       success: false,
@@ -104,7 +123,6 @@ export async function sendUmsgSms(to, message) {
     };
 
   } catch (error) {
-    // Enhanced error logging
     const errorDetails = {
       message: error.message,
       code: error.code,
@@ -125,9 +143,10 @@ export async function sendUmsgSms(to, message) {
 }
 
 /**
- * Escape special characters for XML
+ * Escape special characters for XML (including # and other special chars)
  */
 function escapeXml(str) {
+  if (!str) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
