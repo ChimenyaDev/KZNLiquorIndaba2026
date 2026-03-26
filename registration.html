@@ -921,8 +921,25 @@
             <input type="text" id="lastName" placeholder="Your surname" required>
           </div>
           <div class="field-group">
-            <label>ID / Passport Number</label>
-            <input type="text" id="idNumber" placeholder="SA ID or Passport">
+            <label>Nationality <span class="required">*</span></label>
+            <div class="select-wrapper">
+              <select id="nationality" required onchange="toggleNationalityFields()">
+                <option value="">Select nationality</option>
+                <option value="sa">South African</option>
+                <option value="non-sa">Non-South African</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field-row" id="idPassportRow" style="display:none;">
+          <div class="field-group" id="saIdGroup" style="display:none;">
+            <label>SA ID Number <span class="required">*</span></label>
+            <input type="text" id="idNumber" placeholder="13-digit SA ID number" maxlength="13">
+            <span class="field-hint">13 digits: first 6 = date of birth (YYMMDD), digit 7 = gender (0–4 female, 5–9 male)</span>
+          </div>
+          <div class="field-group" id="passportGroup" style="display:none;">
+            <label>Passport Number <span class="required">*</span></label>
+            <input type="text" id="passportNumber" placeholder="Passport number">
           </div>
         </div>
         <div class="field-row">
@@ -983,7 +1000,7 @@
           <div class="field-group">
             <label>Delegate Category <span class="required">*</span></label>
             <div class="select-wrapper">
-              <select id="delegateCategory" required>
+              <select id="delegateCategory" required onchange="toggleDelegateOther()">
                 <option value="">Select category</option>
                 <optgroup label="Licensees">
                   <option>Tavern / Shebeen Operator</option>
@@ -1012,6 +1029,10 @@
                   <option>Other</option>
                 </optgroup>
               </select>
+            </div>
+            <div id="delegateCategoryOtherGroup" style="display:none; margin-top:10px;">
+              <label>Please Specify <span class="required">*</span></label>
+              <input type="text" id="delegateCategoryOther" placeholder="Please specify your category">
             </div>
           </div>
           <div class="field-group">
@@ -1243,7 +1264,7 @@
               <div class="popi-point-icon">
                 <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
               </div>
-              <div><strong>Your Rights:</strong> You have the right to access, correct, or request deletion of your personal information at any time by contacting KZNERA at <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6900070d080b08290213070c1b08470a06471308">[email&#160;protected]</a></strong>.</div>
+              <div><strong>Your Rights:</strong> You have the right to access, correct, or request deletion of your personal information at any time by contacting KZNERA at <strong><a href="mailto:liquorindaba@kznera.org.za">liquorindaba@kznera.org.za</a></strong>.</div>
             </div>
           </div>
         </div>
@@ -1307,6 +1328,24 @@
           </div>
         </div>
 
+        <div class="section-divider">
+          <div class="section-divider-line"></div>
+          <div class="section-divider-label">Security Verification</div>
+          <div class="section-divider-line"></div>
+        </div>
+
+        <div class="field-row full">
+          <div class="field-group">
+            <label>Please answer the following to verify you are human <span class="required">*</span></label>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <span id="captchaQuestion" style="font-size:1.05rem;font-weight:600;color:var(--navy);background:var(--light-gray);padding:10px 16px;border-radius:8px;min-width:120px;text-align:center;"></span>
+              <span style="color:var(--mid-gray)">=</span>
+              <input type="number" id="captchaAnswer" placeholder="Your answer" style="max-width:140px;" autocomplete="off">
+            </div>
+            <span class="field-hint">This helps us ensure a real person is completing this form.</span>
+          </div>
+        </div>
+
         <div class="form-nav">
           <button class="btn btn-secondary" onclick="goToStep(3)">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -1343,6 +1382,16 @@
           Durban, KwaZulu-Natal
         </div>
       </div>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:28px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="submitAnotherRegistration()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Submit Another Registration
+        </button>
+        <button class="btn btn-primary" onclick="closePage()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Close Page
+        </button>
+      </div>
     </div>
 
   </div><!-- /form-card -->
@@ -1351,10 +1400,10 @@
 <!-- FOOTER -->
 <footer class="site-footer">
   <p>© 2026 KwaZulu-Natal Economic Regulatory Authority (KZNERA) &nbsp;|&nbsp; In partnership with the Department of Economic Development, Tourism and Environmental Affairs (EDTEA)</p>
-  <p style="margin-top:6px;">For enquiries: <a href="/cdn-cgi/l/email-protection#fd9493999c9f9cbd968793988f9cd39e92d3879c"><span class="__cf_email__" data-cfemail="b8d1d6dcd9dad9f8d3c2d6ddcad996dbd796c2d9">[email&#160;protected]</span></a> &nbsp;|&nbsp; Personal information handled in accordance with POPIA (Act 4 of 2013)</p>
+  <p style="margin-top:6px;">For enquiries: <a href="mailto:liquorindaba@kznera.org.za">liquorindaba@kznera.org.za</a> &nbsp;|&nbsp; Personal information handled in accordance with POPIA (Act 4 of 2013)</p>
 </footer>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
  
   let currentStep = 1;
   const totalSteps = 4;
@@ -1370,6 +1419,8 @@
       if (i + 1 === step) s.classList.add('active');
     });
     currentStep = step;
+    // Generate a fresh CAPTCHA each time the user arrives at step 4
+    if (step === 4) generateCaptcha();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1381,13 +1432,44 @@
       const email = document.getElementById('email').value.trim();
       const mobile = document.getElementById('mobile').value.trim();
       const commPref = document.querySelector('input[name="commPref"]:checked');
-      if (!title || !fname || !lname || !email || !mobile || !commPref) {
+      const nationality = document.getElementById('nationality').value;
+
+      if (!title || !fname || !lname || !email || !mobile || !commPref || !nationality) {
         alert('Please complete all required fields in Personal Information before continuing.');
         return false;
       }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+
+      // Email format validation
+      if (!/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(email)) {
         alert('Please enter a valid email address.');
         return false;
+      }
+
+      // Mobile number validation (SA format: 0XX-XXXXXXX or +27-XX-XXXXXXX)
+      const cleanMobile = mobile.replace(/[\s\-()+]/g, '');
+      if (!/^(27|0)[6-9]\d{8}$/.test(cleanMobile)) {
+        alert('Please enter a valid South African mobile number (e.g. 082 000 0000 or +27 82 000 0000).');
+        return false;
+      }
+
+      // Nationality-specific ID / Passport validation
+      if (nationality === 'sa') {
+        const idNum = document.getElementById('idNumber').value.trim();
+        if (!idNum) {
+          alert('Please enter your SA ID Number.');
+          return false;
+        }
+        const idError = validateSAID(idNum);
+        if (idError) {
+          alert(idError);
+          return false;
+        }
+      } else if (nationality === 'non-sa') {
+        const passport = document.getElementById('passportNumber').value.trim();
+        if (!passport) {
+          alert('Please enter your Passport Number.');
+          return false;
+        }
       }
     }
     if (step === 2) {
@@ -1398,6 +1480,13 @@
         alert('Please complete all required fields in Business Details before continuing.');
         return false;
       }
+      if (cat === 'Other') {
+        const specify = document.getElementById('delegateCategoryOther').value.trim();
+        if (!specify) {
+          alert('Please specify your delegate category.');
+          return false;
+        }
+      }
     }
     if (step === 3) {
       const days = document.querySelectorAll('input[name="days"]:checked');
@@ -1407,6 +1496,67 @@
       }
     }
     return true;
+  }
+
+  /**
+   * Validate a South African ID number.
+   * Returns an error message string if invalid, or null if valid.
+   */
+  function validateSAID(id) {
+    if (!/^\d{13}$/.test(id)) {
+      return 'SA ID Number must be exactly 13 numeric digits.';
+    }
+    // Extract date of birth (YYMMDD)
+    const yy = parseInt(id.substring(0, 2), 10);
+    const mm = parseInt(id.substring(2, 4), 10);
+    const dd = parseInt(id.substring(4, 6), 10);
+    if (mm < 1 || mm > 12) {
+      return 'SA ID Number contains an invalid birth month (digits 3–4 must be 01–12).';
+    }
+    const currentYear = new Date().getFullYear();
+    const fullYear = yy + (yy <= currentYear % 100 ? 2000 : 1900);
+    const testDate = new Date(fullYear, mm - 1, dd);
+    if (testDate.getFullYear() !== fullYear || testDate.getMonth() !== mm - 1 || testDate.getDate() !== dd) {
+      return 'SA ID Number contains an invalid date of birth (first 6 digits must be a valid YYMMDD date).';
+    }
+    // Gender digit: 0–4 = female, 5–9 = male (valid for any value 0–9, just informational)
+    const genderDigit = parseInt(id.charAt(6), 10);
+    if (isNaN(genderDigit)) {
+      return 'SA ID Number contains an invalid gender digit at position 7.';
+    }
+    return null; // valid
+  }
+
+  function toggleNationalityFields() {
+    const nat = document.getElementById('nationality').value;
+    const idPassportRow = document.getElementById('idPassportRow');
+    const saIdGroup = document.getElementById('saIdGroup');
+    const passportGroup = document.getElementById('passportGroup');
+
+    if (nat === 'sa') {
+      idPassportRow.style.display = '';
+      saIdGroup.style.display = '';
+      passportGroup.style.display = 'none';
+      document.getElementById('passportNumber').value = '';
+    } else if (nat === 'non-sa') {
+      idPassportRow.style.display = '';
+      saIdGroup.style.display = 'none';
+      passportGroup.style.display = '';
+      document.getElementById('idNumber').value = '';
+    } else {
+      idPassportRow.style.display = 'none';
+      saIdGroup.style.display = 'none';
+      passportGroup.style.display = 'none';
+    }
+  }
+
+  function toggleDelegateOther() {
+    const cat = document.getElementById('delegateCategory').value;
+    const otherGroup = document.getElementById('delegateCategoryOtherGroup');
+    otherGroup.style.display = cat === 'Other' ? '' : 'none';
+    if (cat !== 'Other') {
+      document.getElementById('delegateCategoryOther').value = '';
+    }
   }
 
   function toggleRadio(label, name) {
@@ -1440,8 +1590,63 @@
     return ref;
   }
 
+  // ── CAPTCHA ───────────────────────────────────────────────────────────────
+  let _captchaAnswer = null;
+
+  function generateCaptcha() {
+    const ops = ['+', '-', '×'];
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let a, b, answer;
+    if (op === '+') {
+      a = Math.floor(Math.random() * 20) + 1;
+      b = Math.floor(Math.random() * 20) + 1;
+      answer = a + b;
+    } else if (op === '-') {
+      a = Math.floor(Math.random() * 20) + 5;
+      b = Math.floor(Math.random() * a) + 1;
+      answer = a - b;
+    } else {
+      a = Math.floor(Math.random() * 9) + 2;
+      b = Math.floor(Math.random() * 9) + 2;
+      answer = a * b;
+    }
+    _captchaAnswer = answer;
+    const el = document.getElementById('captchaQuestion');
+    if (el) el.textContent = `${a} ${op} ${b}`;
+    const answerEl = document.getElementById('captchaAnswer');
+    if (answerEl) answerEl.value = '';
+  }
+
+  function validateCaptcha() {
+    const input = parseInt(document.getElementById('captchaAnswer').value, 10);
+    if (isNaN(input) || input !== _captchaAnswer) {
+      alert('Incorrect answer to the security question. Please try again.');
+      generateCaptcha();
+      return false;
+    }
+    return true;
+  }
+
+  // ── Post-registration actions ─────────────────────────────────────────────
+
+  function submitAnotherRegistration() {
+    window.location.reload();
+  }
+
+  function closePage() {
+    // Try to close the tab; if not possible (e.g., not opened by script), redirect to homepage
+    if (window.opener) {
+      window.close();
+    } else {
+      window.location.href = 'https://www.kznera.org.za';
+    }
+  }
+
   async function submitRegistration() {
     if (!validateStep(4)) return;
+
+    // CAPTCHA validation
+    if (!validateCaptcha()) return;
 
     const c1 = document.getElementById('consent1').checked;
     const c2 = document.getElementById('consent2').checked;
@@ -1464,13 +1669,17 @@
       title:            document.getElementById('title').value,
       firstName:        document.getElementById('firstName').value,
       lastName:         document.getElementById('lastName').value,
-      idNumber:         document.getElementById('idNumber').value,
+      nationality:      document.getElementById('nationality').value,
+      idNumber:         document.getElementById('nationality').value === 'sa' ? document.getElementById('idNumber').value : '',
+      passportNumber:   document.getElementById('nationality').value === 'non-sa' ? document.getElementById('passportNumber').value : '',
       email:            document.getElementById('email').value,
       mobile:           document.getElementById('mobile').value,
       commPref:         document.querySelector('input[name="commPref"]:checked')?.value || '',
       orgName:          document.getElementById('orgName').value,
       licenceNo:        document.getElementById('licenceNo').value,
-      delegateCategory: document.getElementById('delegateCategory').value,
+      delegateCategory: document.getElementById('delegateCategory').value === 'Other'
+                          ? 'Other: ' + document.getElementById('delegateCategoryOther').value
+                          : document.getElementById('delegateCategory').value,
       district:         document.getElementById('district').value,
       address:          document.getElementById('address').value,
       jobTitle:         document.getElementById('jobTitle').value,
@@ -1529,7 +1738,7 @@
           `Event: Friday 8 May – Saturday 9 May 2026 | Durban, KwaZulu-Natal\n\n` +
           `Please keep this reference number for your records. ` +
           `Further joining instructions will be sent closer to the event.\n\n` +
-          `For enquiries: indaba@kznera.co.za`;
+          `For enquiries: liquorindaba@kznera.org.za`;
 
         await fetch(NOTIFY_API_URL, {
           method: 'POST',
