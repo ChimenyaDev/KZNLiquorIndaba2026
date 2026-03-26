@@ -166,7 +166,7 @@ export function buildEmailHtml(subject, firstName, message) {
     <p>Dear ${safeFirst},</p>
     <p>${safeMessage}</p>
     <p style="margin-top:28px;font-size:0.85rem;color:#718096;">
-      For enquiries contact <a href="mailto:liquorindaba@kznera.co.za" style="color:#1a3560;">liquorindaba@kznera.co.za</a>
+      For enquiries contact <a href="mailto:liquorindaba@kznera.org.za" style="color:#1a3560;">liquorindaba@kznera.org.za</a>
     </p>
   </div>
   <div class="footer">
