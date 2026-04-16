@@ -2126,23 +2126,12 @@ let filteredDelegates = [];
 let notificationLog = JSON.parse(localStorage.getItem('kzn_notif_log') || '[]');
 let isSyncing = false;
 
-// ── Demo data seed (used when no Sheet URL and localStorage is empty) ──
-function seedDemoData() {
-  const existing = JSON.parse(localStorage.getItem('kzn_delegates') || '[]');
-  if (existing.length > 0) return;
-  const demos = [
-    { ref:'IND2026-DEMO1', timestamp: new Date(Date.now()-3600000*5).toISOString(), title:'Mr', firstName:'Sibusiso', lastName:'Dlamini', email:'s.dlamini@demo.co.za', mobile:'0821234567', commPref:'email', orgName:'Dlamini Taverns', licenceNo:'KZN-2022-04512', delegateCategory:'Tavern / Shebeen Operator', district:'eThekwini Metropolitan', jobTitle:'Owner', days:['day1','day2'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['halaal'], status:'Registered', synced:true, notificationsSent:[] },
-    { ref:'IND2026-DEMO2', timestamp: new Date(Date.now()-3600000*4).toISOString(), title:'Ms', firstName:'Zanele', lastName:'Nkosi', email:'z.nkosi@demo.co.za', mobile:'0731234567', commPref:'sms', orgName:'Nkosi Bottle Store', licenceNo:'KZN-2023-08821', delegateCategory:'Bottle Store / Off-Consumption', district:'uMgungundlovu District', jobTitle:'Proprietor', days:['day1'], galaDinner:'yes', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', synced:true, notificationsSent:[] },
-    { ref:'IND2026-DEMO3', timestamp: new Date(Date.now()-3600000*3).toISOString(), title:'Dr', firstName:'Ayanda', lastName:'Mthembu', email:'a.mthembu@edtea.gov.za', mobile:'0311234567', commPref:'both', orgName:'EDTEA', licenceNo:'', delegateCategory:'EDTEA Official', district:'eThekwini Metropolitan', jobTitle:'Director', days:['day1','day2'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['vegetarian'], status:'Registered', synced:true, notificationsSent:[] },
-    { ref:'IND2026-DEMO4', timestamp: new Date(Date.now()-3600000*2).toISOString(), title:'Mr', firstName:'Lungelo', lastName:'Zungu', email:'l.zungu@demo.co.za', mobile:'0841234567', commPref:'sms', orgName:'Zungu Craft Brewing', licenceNo:'KZN-2024-11032', delegateCategory:'Microbrewer / Craft Producer', district:'King Cetshwayo District', jobTitle:'Founder', days:['day1','day2'], galaDinner:'no', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', synced:true, notificationsSent:[] },
-    { ref:'IND2026-DEMO5', timestamp: new Date(Date.now()-3600000*1).toISOString(), title:'Mrs', firstName:'Priya', lastName:'Govender', email:'p.govender@standard.co.za', mobile:'0611234567', commPref:'email', orgName:'Standard Bank', licenceNo:'', delegateCategory:'Financial Institution / DFI', district:'eThekwini Metropolitan', jobTitle:'Enterprise Development Manager', days:['day1'], galaDinner:'yes', shuttle:'no', accommodation:'no', dietary:['none'], status:'Registered', synced:true, notificationsSent:[] },
-    { ref:'IND2026-DEMO6', timestamp: new Date(Date.now()-1800000).toISOString(), title:'Mr', firstName:'Thabo', lastName:'Mokoena', email:'t.mokoena@demo.co.za', mobile:'0761234567', commPref:'sms', orgName:'Mokoena Tavern', licenceNo:'KZN-2021-03341', delegateCategory:'Tavern / Shebeen Operator', district:'Harry Gwala District', jobTitle:'Owner', days:['day1'], galaDinner:'yes', shuttle:'yes', accommodation:'yes', dietary:['none'], status:'Registered', synced:true, notificationsSent:[] },
-  ];
-  localStorage.setItem('kzn_delegates', JSON.stringify(demos));
+function getStoredDelegates() {
+  return JSON.parse(localStorage.getItem('kzn_delegates') || '[]');
 }
 
 function getDelegates() {
-  return JSON.parse(localStorage.getItem('kzn_delegates') || '[]');
+  return getStoredDelegates().filter(d => d && d.source === 'sheet');
 }
 
 function saveDelegates(data) {
@@ -2151,7 +2140,7 @@ function saveDelegates(data) {
 
 // ── Merge Sheet rows into localStorage (Sheet is master, local adds notificationsSent) ──
 function mergeSheetData(sheetRows) {
-  const local = getDelegates();
+  const local = getStoredDelegates();
   const localMap = {};
   local.forEach(d => { localMap[d.ref] = d; });
 
@@ -2162,13 +2151,10 @@ function mergeSheetData(sheetRows) {
       // Preserve notification history and check-in data which only live locally
       notificationsSent: existing.notificationsSent || [],
       checkedInDays: existing.checkedInDays || {},
-      synced: true
+      synced: true,
+      source: 'sheet'
     };
   });
-
-  // Also keep any local records not yet in the sheet (just submitted, pending sync)
-  const sheetRefs = new Set(sheetRows.map(r => r.ref));
-  local.filter(d => !sheetRefs.has(d.ref)).forEach(d => merged.push(d));
 
   saveDelegates(merged);
   return merged;
@@ -2282,12 +2268,8 @@ async function doLogin() {
     document.getElementById('userNameSidebar').textContent = currentUser.name;
     document.getElementById('userAvatarSidebar').textContent = currentUser.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
 
-    // If Sheet URL is configured, sync on login; otherwise seed demo data
-    if (SHEET_URL) {
-      await syncFromSheet();
-    } else {
-      seedDemoData();
-    }
+    // Always sync on login; only Sheet-sourced delegates are shown
+    await syncFromSheet();
     refreshAll();
   } else {
     err.style.display = 'flex';
