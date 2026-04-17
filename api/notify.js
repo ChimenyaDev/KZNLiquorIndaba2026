@@ -58,7 +58,9 @@ function normalizeAndValidateAttachments(attachments) {
     if (!att || typeof att !== 'object') {
       return { ok: false, message: 'Each attachment must be an object' };
     }
-    const filename = String(att.filename || '').trim();
+    const rawFilename = String(att.filename || '').replace(/\0/g, '').trim();
+    const pathParts = rawFilename.split(/[/\\]/).filter(Boolean);
+    const filename = pathParts[pathParts.length - 1] || '';
     const content = String(att.content || '').trim();
     const inputMime = String(att.mime || '').trim().toLowerCase();
     if (!filename || !content) {
@@ -77,13 +79,18 @@ function normalizeAndValidateAttachments(attachments) {
     }
 
     const sanitizedContent = content.replace(/\s/g, '');
+    // Client uploads are expected to use FileReader data URLs, which produce standard base64.
+    // URL-safe base64 variants are intentionally rejected here.
     if (!/^[A-Za-z0-9+/=]+$/.test(sanitizedContent)) {
       return { ok: false, message: `Attachment content is not valid base64: ${filename}` };
     }
     const decoded = Buffer.from(sanitizedContent, 'base64');
-    const size = Number.isFinite(Number(att.size)) && Number(att.size) > 0
-      ? Number(att.size)
-      : decoded.byteLength;
+    const decodedSize = decoded.byteLength;
+    const declaredSize = Number(att.size);
+    if (Number.isFinite(declaredSize) && declaredSize > 0 && declaredSize !== decodedSize) {
+      return { ok: false, message: `Attachment size metadata mismatch: ${filename}` };
+    }
+    const size = decodedSize;
     if (size > MAX_ATTACHMENT_SIZE_BYTES) {
       return { ok: false, message: `${filename} exceeds 5MB per-file limit` };
     }

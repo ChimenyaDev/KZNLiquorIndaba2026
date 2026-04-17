@@ -94,12 +94,20 @@ $ext_to_mime = [
 ];
 
 $total_attachment_size = 0;
-foreach ($attachments as &$att) {
+for ($i = 0; $i < count($attachments); $i++) {
+    $att = $attachments[$i];
     if (empty($att['filename']) || empty($att['content'])) {
         http_response_code(422);
         exit(json_encode(['success' => false, 'message' => 'Each attachment must have filename and content']));
     }
-    $filename = trim((string)$att['filename']);
+    $filename_raw = trim((string)$att['filename']);
+    $filename = basename(str_replace("\0", '', $filename_raw));
+    $filename = preg_replace('/[^A-Za-z0-9._ -]/', '_', $filename);
+    $filename = ltrim($filename, '.');
+    if ($filename === '') {
+        http_response_code(422);
+        exit(json_encode(['success' => false, 'message' => 'Attachment filename is invalid']));
+    }
     $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
     $incoming_mime = strtolower(trim((string)($att['mime'] ?? '')));
     $mime = in_array($incoming_mime, $allowed_mimes, true)
@@ -110,15 +118,20 @@ foreach ($attachments as &$att) {
         exit(json_encode(['success' => false, 'message' => 'Attachment type not allowed: ' . $mime]));
     }
 
-    $content = preg_replace('/\s+/', '', (string)$att['content']);
+    $content = str_replace(["\r", "\n", "\t", " "], '', (string)$att['content']);
     $decoded = base64_decode($content, true);
     if ($decoded === false) {
         http_response_code(422);
         exit(json_encode(['success' => false, 'message' => "Invalid base64 attachment content for {$filename}"]));
     }
 
+    $decoded_size = strlen($decoded);
     $declared_size = isset($att['size']) ? (int)$att['size'] : 0;
-    $actual_size = $declared_size > 0 ? $declared_size : strlen($decoded);
+    if ($declared_size > 0 && $declared_size !== $decoded_size) {
+        http_response_code(422);
+        exit(json_encode(['success' => false, 'message' => "Attachment size metadata mismatch for {$filename}"]));
+    }
+    $actual_size = $decoded_size;
     if ($actual_size > $max_attachment_size) {
         http_response_code(422);
         exit(json_encode(['success' => false, 'message' => "{$filename} exceeds 5MB per-file limit"]));
@@ -130,11 +143,11 @@ foreach ($attachments as &$att) {
         exit(json_encode(['success' => false, 'message' => 'Total attachment size exceeds 10MB limit']));
     }
 
-    $att['mime'] = $mime;
-    $att['content'] = $content;
-    $att['size'] = $actual_size;
+    $attachments[$i]['filename'] = $filename;
+    $attachments[$i]['mime'] = $mime;
+    $attachments[$i]['content'] = $content;
+    $attachments[$i]['size'] = $actual_size;
 }
-unset($att);
 
 if (!check_rate_limit()) {
     http_response_code(429);

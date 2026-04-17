@@ -2038,10 +2038,10 @@ tr:hover td { background: rgba(26,53,96,0.02); }
                 <div id="vipAttachmentDropzone" style="border:1.5px dashed var(--border);border-radius:10px;padding:14px;background:var(--light-gray);text-align:center;cursor:pointer;">
                   <div style="font-size:0.82rem;color:var(--navy);font-weight:600;">Drag &amp; drop files here, or click to browse</div>
                   <div style="font-size:0.75rem;color:var(--mid-gray);margin-top:4px;">Max 5 files • 5MB each • 10MB total</div>
-                  <input type="file" id="vipAttachmentInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" style="display:none" onchange="handleVipAttachmentSelect(event)">
+                  <input type="file" id="vipAttachmentInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.txt" style="display:none" onchange="handleVipAttachmentSelect(event)">
                 </div>
                 <div style="font-size:0.75rem;color:var(--mid-gray);margin-top:6px;">
-                  Allowed file types: PDF, Word (.doc/.docx), Excel (.xls/.xlsx), Images (.jpg/.jpeg/.png/.gif), Text (.txt)
+                  Allowed file types: PDF, Word (.doc/.docx), Excel/CSV (.xls/.xlsx/.csv), Images (.jpg/.jpeg/.png/.gif), Text (.txt)
                 </div>
                 <div id="vipAttachmentUploadStatus" style="font-size:0.75rem;color:var(--mid-gray);margin-top:6px;"></div>
                 <div id="vipAttachmentUploadProgressWrap" style="display:none;margin-top:6px;background:#e2e8f0;border-radius:999px;height:6px;overflow:hidden;">
@@ -2535,6 +2535,7 @@ const VIP_ALLOWED_ATTACHMENT_TYPES = {
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { ext: ['docx'], icon: '📝' },
   'application/vnd.ms-excel': { ext: ['xls'], icon: '📊' },
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { ext: ['xlsx'], icon: '📊' },
+  'text/csv': { ext: ['csv'], icon: '📊' },
   'image/jpeg': { ext: ['jpg', 'jpeg'], icon: '🖼️' },
   'image/png': { ext: ['png'], icon: '🖼️' },
   'image/gif': { ext: ['gif'], icon: '🖼️' },
@@ -3684,7 +3685,9 @@ function formatBytes(size) {
     value /= 1024;
     i += 1;
   }
-  return `${value.toFixed(value >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+  const isBytesUnit = i === 0;
+  const precision = (isBytesUnit || value >= 100) ? 0 : 1;
+  return `${value.toFixed(precision)} ${units[i]}`;
 }
 
 function getVipFileExtension(filename) {
@@ -3745,7 +3748,7 @@ function updateVipAttachmentSummary() {
   const countEl = document.getElementById('vipAttachmentCount');
   if (countEl) {
     const total = vipPendingAttachments.reduce((sum, item) => sum + Number(item.size || 0), 0);
-    countEl.textContent = `${vipPendingAttachments.length} / ${VIP_ATTACHMENT_LIMITS.maxFiles} files (${formatBytes(total)} / 10 MB)`;
+    countEl.textContent = `${vipPendingAttachments.length} / ${VIP_ATTACHMENT_LIMITS.maxFiles} files (${formatBytes(total)} / ${formatBytes(VIP_ATTACHMENT_LIMITS.maxTotalBytes)})`;
   }
 }
 
@@ -3787,7 +3790,14 @@ function readFileAsBase64(file) {
     const reader = new FileReader();
     reader.onload = e => {
       const result = String(e.target?.result || '');
-      const content = result.includes(',') ? result.split(',')[1] : result;
+      const markerIndex = result.indexOf('base64,');
+      let content = result;
+      if (markerIndex >= 0) {
+        content = result.slice(markerIndex + 'base64,'.length);
+      } else {
+        const firstComma = result.indexOf(',');
+        if (firstComma >= 0) content = result.slice(firstComma + 1);
+      }
       resolve(content);
     };
     reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
@@ -3880,7 +3890,7 @@ async function sendVipNotification() {
   const attachmentPayload = vipPendingAttachments.map(att => ({
     filename: att.filename,
     content: att.content,
-    mime: att.mime || inferVipMimeFromExtension(getVipFileExtension(att.filename)) || 'application/octet-stream',
+    mime: att.mime,
     size: Number(att.size || 0)
   }));
 
@@ -4346,7 +4356,7 @@ function exportCSV(type='all') {
       (n.subject || '').replace(/,/g, ' '),
       n.recipientCount || 0,
       n.attachmentCount || (n.attachments || []).length || 0,
-      (n.attachments || []).map(a => `${a.filename} (${formatBytes(Number(a.size || 0))})`).join('; '),
+      (n.attachments || []).map(a => `${String(a.filename || '').replace(/\|/g, '_')} (${formatBytes(Number(a.size || 0))})`).join(' | '),
       n.sentBy || 'admin',
       n.status || 'unknown'
     ]);
