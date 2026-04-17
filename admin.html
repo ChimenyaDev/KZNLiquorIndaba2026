@@ -2390,7 +2390,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
       <div style="margin-top:12px;font-size:0.8rem;color:var(--mid-gray);">
         Required columns: FIRSTNAME, LASTNAME, EMAIL ADDRESS, TEL/MOBILE. Optional: TITLE, NAME OF ORGANISATION, PRIORITY LEVEL.
       </div>
-      <div id="vipUploadProgress" role="status" aria-live="polite" style="margin-top:8px;font-size:0.8rem;color:var(--mid-gray);">No file selected.</div>
+      <div id="vipUploadProgress" role="status" aria-live="polite" aria-label="Upload progress status" style="margin-top:8px;font-size:0.8rem;color:var(--mid-gray);">No file selected.</div>
       <div class="table-wrap" style="margin-top:16px;max-height:300px;">
         <table>
           <thead>
@@ -2497,7 +2497,8 @@ const VIP_PAGE_SIZE = 15;
 const MAX_VIP_UPLOAD_ERROR_PREVIEW_ROWS = 5;
 const VIP_UPLOAD_PROGRESS_INTERVAL = 25;
 const VIP_UPLOAD_SUCCESS_REF_PREVIEW = 3;
-const VIP_UPLOAD_DEBUG = true;
+const VIP_REF_PREFIX = 'VIP2026-';
+const VIP_UPLOAD_DEBUG = (localStorage.getItem('vip_upload_debug') ?? '1') !== '0';
 const VIP_UPLOAD_COLUMNS = ['NO', 'NAME OF ORGANISATION', 'TITLE', 'FIRSTNAME', 'LASTNAME', 'TEL/MOBILE', 'EMAIL ADDRESS', 'PRIORITY LEVEL'];
 let vipFiltered = [];
 let vipUploadPreviewData = [];
@@ -2568,22 +2569,23 @@ function saveVipNotifLog(data) {
 
 function makeVipRef(existingRefs = null) {
   const refs = existingRefs || new Set(getVipDelegates().map(v => v.ref));
+  const refRegex = new RegExp(`^${VIP_REF_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d{5})$`);
   const numbers = [...refs]
-    .map(ref => /^VIP2026-(\d{5})$/.exec(String(ref || '').trim()))
+    .map(ref => refRegex.exec(String(ref || '').trim()))
     .filter(Boolean)
     .map(match => Number(match[1]))
     .filter(Number.isFinite);
   let next = (numbers.length ? Math.max(...numbers) : 0) + 1;
   if (next > 99999) {
-    throw new Error('VIP reference limit reached for VIP2026-XXXXX format');
+    throw new Error(`VIP reference limit reached for ${VIP_REF_PREFIX}XXXXX format`);
   }
-  let ref = `VIP2026-${String(next).padStart(5, '0')}`;
+  let ref = `${VIP_REF_PREFIX}${String(next).padStart(5, '0')}`;
   while (refs.has(ref)) {
     next += 1;
     if (next > 99999) {
       throw new Error('Unable to generate unique VIP reference number');
     }
-    ref = `VIP2026-${String(next).padStart(5, '0')}`;
+    ref = `${VIP_REF_PREFIX}${String(next).padStart(5, '0')}`;
   }
   refs.add(ref);
   return ref;
@@ -3312,6 +3314,7 @@ function detectVipCsvDelimiter(text) {
 }
 
 function parseVipCsvRows(text) {
+  // Stakeholder import template uses semicolon-separated values by specification.
   const delimiter = ';';
   const rows = [];
   let current = '';
@@ -3358,7 +3361,7 @@ function isValidVipEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function isValidSaMobile(value) {
+function isValidSouthAfricanMobile(value) {
   return /^0\d{9}$/.test(value) || /^27\d{9}$/.test(value) || /^\+27\d{9}$/.test(value);
 }
 
@@ -3417,7 +3420,7 @@ function mapVipUploadRows(rows, refs, headerRowIndex = 0, onProgress = null) {
     if (!csvRow.email) errors.push('EMAIL ADDRESS is required');
     if (!csvRow.mobile) errors.push('TEL/MOBILE is required');
     if (csvRow.email && !isValidVipEmail(csvRow.email)) errors.push('EMAIL ADDRESS format is invalid');
-    if (csvRow.mobile && !isValidSaMobile(csvRow.mobile)) errors.push('TEL/MOBILE format is invalid (use 0XX..., 27XX..., or +27XX...)');
+    if (csvRow.mobile && !isValidSouthAfricanMobile(csvRow.mobile)) errors.push('TEL/MOBILE format is invalid (use 10-digit format: 0XXXXXXXXX, 27XXXXXXXXX, or +27XXXXXXXXX)');
 
     const emailKey = csvRow.email.toLowerCase();
     if (emailKey) {
@@ -3490,7 +3493,11 @@ function parseVipUploadFile(file) {
       let headers = [];
       let headerRowIndex = -1;
       if (isCsv) {
-        rows = parseVipCsvRows(decodeCsvText(buffer));
+        const csvText = decodeCsvText(buffer);
+        if (detectVipCsvDelimiter(csvText) !== ';') {
+          throw new Error('CSV file must use semicolon (;) delimiters');
+        }
+        rows = parseVipCsvRows(csvText);
         headerRowIndex = findVipHeaderRow(rows);
         headers = headerRowIndex >= 0 ? normalizeVipRowArray(rows[headerRowIndex]) : [];
       } else {
@@ -3521,8 +3528,9 @@ function parseVipUploadFile(file) {
       showToast(`Loaded ${vipUploadPreviewData.length} rows (${validCount} valid${invalidCount ? `, ${invalidCount} invalid` : ''}) for preview`);
     } catch (err) {
       console.error(err);
-      setVipUploadProgress('Failed to parse file. Check file format and required columns.', true);
-      showToast('Failed to parse upload file. Ensure it contains valid VIP columns and data.', true);
+      const parseError = err?.message || 'Failed to parse file';
+      setVipUploadProgress(`${parseError}. Required columns: FIRSTNAME, LASTNAME, EMAIL ADDRESS, TEL/MOBILE.`, true);
+      showToast(`${parseError}. Ensure required columns are present and CSV uses semicolon (;) delimiters.`, true);
     }
   };
   reader.readAsArrayBuffer(file);
