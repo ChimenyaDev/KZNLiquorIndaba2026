@@ -2493,6 +2493,7 @@ let vipSortField = 'uploadedDate';
 let vipSortDir = -1;
 let vipPage = 1;
 const VIP_PAGE_SIZE = 15;
+const MAX_VIP_UPLOAD_ERROR_PREVIEW_ROWS = 5;
 let vipFiltered = [];
 let vipUploadPreviewData = [];
 let vipDelegates = JSON.parse(localStorage.getItem('kzn_vip_delegates') || '[]');
@@ -3249,10 +3250,11 @@ function cleanVipEmail(value) {
 }
 
 function cleanVipMobile(value) {
-  let normalized = cleanVipText(value).replace(/(ext|x)\s*\d+$/i, '').replace(/[^\d+]/g, '');
-  if (normalized.startsWith('00')) normalized = `+${normalized.slice(2)}`;
-  if (normalized.includes('+')) normalized = `+${normalized.replace(/[^\d]/g, '')}`;
-  return normalized;
+  const raw = cleanVipText(value).replace(/(ext|x)\s*\d+$/i, '');
+  const hasIntlPrefix = /^(\+|00)/.test(raw);
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  return hasIntlPrefix ? (digits ? `+${digits}` : '') : digits;
 }
 
 function normalizeVipPriority(value) {
@@ -3265,16 +3267,17 @@ function normalizeVipPriority(value) {
 
 function decodeCsvText(buffer) {
   const bytes = new Uint8Array(buffer);
-  const encodings = ['utf-8', 'windows-1252', 'iso-8859-1'];
-  for (const encoding of encodings) {
-    try {
-      const text = new TextDecoder(encoding).decode(bytes);
-      if (text) return text;
-    } catch (err) {
-      console.warn(`Failed to decode CSV using ${encoding}`, err);
-    }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch (err) {
+    console.warn('Failed to decode CSV using utf-8, trying fallbacks', err);
   }
-  return new TextDecoder().decode(bytes);
+  try {
+    return new TextDecoder('windows-1252').decode(bytes);
+  } catch (err) {
+    console.warn('Failed to decode CSV using windows-1252, trying iso-8859-1', err);
+  }
+  return new TextDecoder('iso-8859-1').decode(bytes);
 }
 
 function detectVipCsvDelimiter(text) {
@@ -3323,7 +3326,7 @@ function parseVipCsvRows(text) {
     }
     current += char;
   }
-  if (row.length || current) pushRow();
+  pushRow();
   if (!rows.length) return [];
 
   const headers = rows.shift().map(h => cleanVipText(h));
@@ -3355,8 +3358,6 @@ function mapVipUploadRows(rows, refs) {
     const orgName = pickVipMappedValue(mapped, ['nameoforganisation', 'organization', 'organisation', 'orgname', 'company']);
     const priorityRaw = pickVipMappedValue(mapped, ['prioritylevel', 'priority', 'category']);
     const category = normalizeVipPriority(priorityRaw);
-    const sequenceNo = pickVipMappedValue(mapped, ['no']);
-
     const rowValues = [firstName, lastName, email, mobile, title, orgName, priorityRaw];
     const isEmpty = rowValues.every(v => !cleanVipText(v));
     if (isEmpty) return null;
@@ -3366,8 +3367,6 @@ function mapVipUploadRows(rows, refs) {
     if (!lastName) errors.push('LASTNAME is required');
     if (!email) errors.push('EMAIL ADDRESS is required');
     if (!mobile) errors.push('TEL/MOBILE is required');
-    if (!firstName && !lastName && !email && !mobile && !title && !orgName && !priorityRaw) return null;
-
     return {
       ref: makeVipRef(refs),
       title,
@@ -3413,7 +3412,7 @@ function parseVipUploadFile(file) {
       } else {
         const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
         if (!workbook.SheetNames || !workbook.SheetNames.length) {
-          throw new Error('No worksheets found in upload');
+          throw new Error('No worksheets found in Excel file');
         }
         const ws = workbook.Sheets[workbook.SheetNames[0]];
         rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
@@ -3459,8 +3458,13 @@ function renderVipUploadPreview() {
   const summary = document.getElementById('vipUploadSummary');
   if (summary) {
     const invalidRows = vipUploadPreviewData.filter(v => !v._valid);
-    const invalidDetails = invalidRows.slice(0, 5).map(v => `Row ${v._row}: ${(v._errors || []).join(', ')}`).join(' | ');
-    summary.textContent = `Ready to import ${valid} valid VIP records${invalid ? ` (${invalid} invalid skipped)` : ''}.${invalidDetails ? ` ${invalidDetails}` : ''}`;
+    const invalidDetails = invalidRows
+      .slice(0, MAX_VIP_UPLOAD_ERROR_PREVIEW_ROWS)
+      .map(v => `Row ${v._row}: ${(v._errors || []).join(', ')}`)
+      .join(' | ');
+    const moreInvalid = invalidRows.length > MAX_VIP_UPLOAD_ERROR_PREVIEW_ROWS ? ' | ...' : '';
+    const baseSummary = `Ready to import ${valid} valid VIP records${invalid ? ` (${invalid} invalid skipped)` : ''}.`;
+    summary.textContent = invalidDetails ? `${baseSummary} ${invalidDetails}${moreInvalid}` : baseSummary;
   }
   const btn = document.getElementById('vipImportBtn');
   if (btn) btn.disabled = valid === 0;
@@ -3468,7 +3472,7 @@ function renderVipUploadPreview() {
 
 function confirmVipImport() {
   const invalidRows = vipUploadPreviewData.filter(v => !v._valid);
-  const validRows = vipUploadPreviewData.filter(v => v._valid).map(({ _valid, _row, _errors, ...rest }) => rest);
+  const validRows = vipUploadPreviewData.filter(v => v._valid).map(({ _row, _errors, ...rest }) => rest);
   if (!validRows.length) {
     showToast('No valid VIP records to import', true);
     return;
