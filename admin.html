@@ -2502,7 +2502,7 @@ let isSyncing = false;
 const VIP_NOTIF_TEMPLATES = {
   'Invitation': {
     subject: 'VIP Invitation — KZN Liquor Indaba 2026',
-    message: 'Dear {FirstName} {LastName},\n\nYou are invited as a VIP delegate to the KZN Liquor Indaba 2026.\nVIP Reference: {VIPReference}\nOrganisation: {Organization}\n\nKind regards,\nKZN Liquor Indaba Team'
+    message: 'Dear {FirstName} {LastName},\n\nYou are invited as a VIP delegate to the KZN Liquor Indaba 2026.\nVIP Reference: {VIPReference}\nOrganization: {Organization}\n\nKind regards,\nKZN Liquor Indaba Team'
   },
   'Save the Date': {
     subject: 'Save the Date — KZN Liquor Indaba 2026',
@@ -2522,7 +2522,7 @@ const VIP_NOTIF_TEMPLATES = {
   },
   'Transportation': {
     subject: 'VIP Transportation Information',
-    message: 'Dear {FirstName},\n\nYour VIP transportation details will be shared shortly.\nOrganisation: {Organization}\nVIP Ref: {VIPReference}'
+    message: 'Dear {FirstName},\n\nYour VIP transportation details will be shared shortly.\nOrganization: {Organization}\nVIP Ref: {VIPReference}'
   },
   'Thank You': {
     subject: 'Thank You — VIP Delegate',
@@ -2563,7 +2563,12 @@ function saveVipNotifLog(data) {
 function makeVipRef(existingRefs = null) {
   const refs = existingRefs || new Set(getVipDelegates().map(v => v.ref));
   let ref = '';
+  let attempts = 0;
   do {
+    attempts++;
+    if (attempts > 2000000) {
+      throw new Error('Unable to generate unique VIP reference number');
+    }
     ref = 'VIP2026-' + String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
   } while (refs.has(ref));
   refs.add(ref);
@@ -3249,6 +3254,9 @@ function parseVipExcelFile(file) {
   reader.onload = e => {
     try {
       const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      if (!workbook.SheetNames || !workbook.SheetNames.length) {
+        throw new Error('No sheets found in workbook');
+      }
       const ws = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
       const refs = new Set(getVipDelegates().map(v => v.ref));
@@ -3279,7 +3287,7 @@ function parseVipExcelFile(file) {
       showToast(`Loaded ${vipUploadPreviewData.length} rows for preview`);
     } catch (err) {
       console.error(err);
-      showToast('Failed to parse Excel file', true);
+      showToast('Failed to parse Excel file. Please ensure it has valid data and required columns.', true);
     }
   };
   reader.readAsArrayBuffer(file);
@@ -3380,7 +3388,7 @@ async function sendVipNotification() {
   const subject = document.getElementById('vipNotifSubject').value.trim();
   const message = document.getElementById('vipNotifMessage').value.trim();
   const recipients = getVipRecipientsByGroup();
-  if (!type) { showToast('Select a VIP notification type', true); return; }
+  if (!type) { showToast('Please select a VIP notification type from the dropdown', true); return; }
   if (!subject) { showToast('Enter VIP notification subject', true); return; }
   if (!message) { showToast('Enter VIP notification message', true); return; }
   if (!recipients.length) { showToast('No VIP recipients match this filter', true); return; }
