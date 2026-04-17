@@ -2375,20 +2375,20 @@ tr:hover td { background: rgba(26,53,96,0.02); }
     <div class="modal-header">
       <div>
         <h3>Upload VIP Delegates</h3>
-        <div style="font-size:0.78rem;color:var(--mid-gray);margin-top:3px;">Accepted files: .xlsx, .xls</div>
+        <div style="font-size:0.78rem;color:var(--mid-gray);margin-top:3px;">Accepted files: .xlsx, .xls, .csv</div>
       </div>
       <button class="modal-close" onclick="closeVipUploadModal()">✕</button>
     </div>
     <div class="modal-body">
       <div id="vipUploadDropzone" class="vip-upload-dropzone">
         <div style="font-size:1.6rem;margin-bottom:6px;">👑</div>
-        <div style="font-weight:700;">Drag and drop Excel file here</div>
+        <div style="font-weight:700;">Drag and drop Excel/CSV file here</div>
         <div style="font-size:0.8rem;margin:6px 0 10px;">or</div>
         <button class="btn btn-orange btn-sm" onclick="document.getElementById('vipFileInput').click()">Choose File</button>
-        <input type="file" id="vipFileInput" accept=".xlsx,.xls" style="display:none;">
+        <input type="file" id="vipFileInput" accept=".xlsx,.xls,.csv,text/csv" style="display:none;">
       </div>
       <div style="margin-top:12px;font-size:0.8rem;color:var(--mid-gray);">
-        Required columns: FirstName, LastName, Email, Mobile. Optional: Title, Organization, Category, Notes.
+        Required columns: FIRSTNAME, LASTNAME, EMAIL ADDRESS, TEL/MOBILE. Optional: TITLE, NAME OF ORGANISATION, PRIORITY LEVEL.
       </div>
       <div class="table-wrap" style="margin-top:16px;max-height:300px;">
         <table>
@@ -3239,55 +3239,194 @@ function normalizeVipKey(key) {
   return String(key || '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
 }
 
-function parseVipExcelFile(file) {
+function cleanVipText(value) {
+  return String(value ?? '').replace(/\uFEFF/g, '').replace(/[\u0000-\u001F\u007F]/g, '').trim();
+}
+
+function cleanVipEmail(value) {
+  const normalized = cleanVipText(value).replace(/[“”"']/g, '').replace(/\s+/g, '');
+  return normalized.split(/[;,]/)[0]?.trim() || '';
+}
+
+function cleanVipMobile(value) {
+  let normalized = cleanVipText(value).replace(/(ext|x)\s*\d+$/i, '').replace(/[^\d+]/g, '');
+  if (normalized.startsWith('00')) normalized = `+${normalized.slice(2)}`;
+  if (normalized.includes('+')) normalized = `+${normalized.replace(/[^\d]/g, '')}`;
+  return normalized;
+}
+
+function normalizeVipPriority(value) {
+  const normalized = cleanVipText(value).toUpperCase();
+  if (!normalized) return 'Regular';
+  if (normalized.includes('VVIP')) return 'VVIP';
+  if (normalized.includes('VIP')) return 'VIP';
+  return 'Regular';
+}
+
+function decodeCsvText(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const encodings = ['utf-8', 'windows-1252', 'iso-8859-1'];
+  for (const encoding of encodings) {
+    try {
+      const text = new TextDecoder(encoding).decode(bytes);
+      if (text) return text;
+    } catch (err) {
+      console.warn(`Failed to decode CSV using ${encoding}`, err);
+    }
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+function detectVipCsvDelimiter(text) {
+  const firstLine = (text || '').split(/\r?\n/).find(line => line.trim()) || '';
+  const semiCount = (firstLine.match(/;/g) || []).length;
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  return semiCount >= commaCount ? ';' : ',';
+}
+
+function parseVipCsvRows(text) {
+  const delimiter = detectVipCsvDelimiter(text);
+  const rows = [];
+  let current = '';
+  let row = [];
+  let inQuotes = false;
+  const pushCell = () => { row.push(current); current = ''; };
+  const pushRow = () => {
+    if (row.length || current) {
+      pushCell();
+      rows.push(row);
+    }
+    row = [];
+    current = '';
+  };
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (!inQuotes && char === delimiter) {
+      pushCell();
+      continue;
+    }
+    if (!inQuotes && (char === '\n' || char === '\r')) {
+      if (char === '\r' && next === '\n') i++;
+      pushRow();
+      continue;
+    }
+    current += char;
+  }
+  if (row.length || current) pushRow();
+  if (!rows.length) return [];
+
+  const headers = rows.shift().map(h => cleanVipText(h));
+  return rows.map(r => {
+    const record = {};
+    headers.forEach((h, idx) => { if (h) record[h] = r[idx] ?? ''; });
+    return record;
+  });
+}
+
+function pickVipMappedValue(mapped, keys) {
+  for (const key of keys) {
+    const value = cleanVipText(mapped[key]);
+    if (value) return value;
+  }
+  return '';
+}
+
+function mapVipUploadRows(rows, refs) {
+  return rows.map((row, i) => {
+    const mapped = {};
+    Object.entries(row || {}).forEach(([k, v]) => { mapped[normalizeVipKey(k)] = cleanVipText(v); });
+
+    const firstName = pickVipMappedValue(mapped, ['firstname', 'first', 'name']);
+    const lastName = pickVipMappedValue(mapped, ['lastname', 'surname', 'last']);
+    const email = cleanVipEmail(pickVipMappedValue(mapped, ['emailaddress', 'email', 'mail']));
+    const mobile = cleanVipMobile(pickVipMappedValue(mapped, ['telmobile', 'mobile', 'tel', 'phone', 'cell']));
+    const title = pickVipMappedValue(mapped, ['title']);
+    const orgName = pickVipMappedValue(mapped, ['nameoforganisation', 'organization', 'organisation', 'orgname', 'company']);
+    const priorityRaw = pickVipMappedValue(mapped, ['prioritylevel', 'priority', 'category']);
+    const category = normalizeVipPriority(priorityRaw);
+    const sequenceNo = pickVipMappedValue(mapped, ['no']);
+
+    const rowValues = [firstName, lastName, email, mobile, title, orgName, priorityRaw];
+    const isEmpty = rowValues.every(v => !cleanVipText(v));
+    if (isEmpty) return null;
+
+    const errors = [];
+    if (!firstName) errors.push('FIRSTNAME is required');
+    if (!lastName) errors.push('LASTNAME is required');
+    if (!email) errors.push('EMAIL ADDRESS is required');
+    if (!mobile) errors.push('TEL/MOBILE is required');
+    if (!firstName && !lastName && !email && !mobile && !title && !orgName && !priorityRaw) return null;
+
+    return {
+      ref: makeVipRef(refs),
+      title,
+      firstName,
+      lastName,
+      email,
+      mobile,
+      orgName,
+      category,
+      notes: '',
+      rsvpStatus: 'Pending',
+      rsvpDate: '',
+      checkedIn: false,
+      checkInDate: '',
+      notificationsSent: [],
+      uploadedDate: new Date().toISOString(),
+      _valid: errors.length === 0,
+      _errors: errors,
+      _row: i + 2
+    };
+  }).filter(Boolean);
+}
+
+function parseVipUploadFile(file) {
   if (!file) return;
   const ext = file.name.toLowerCase();
-  if (!(ext.endsWith('.xlsx') || ext.endsWith('.xls'))) {
-    showToast('Please upload a valid .xlsx or .xls file', true);
+  const isCsv = ext.endsWith('.csv');
+  if (!(ext.endsWith('.xlsx') || ext.endsWith('.xls') || ext.endsWith('.csv'))) {
+    showToast('Please upload a valid .xlsx, .xls, or .csv file', true);
     return;
   }
-  if (typeof XLSX === 'undefined') {
-    showToast('Excel parser not loaded. Refresh and try again.', true);
+  if (!isCsv && typeof XLSX === 'undefined') {
+    showToast('Upload parser not loaded. Refresh and try again.', true);
     return;
   }
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-      if (!workbook.SheetNames || !workbook.SheetNames.length) {
-        throw new Error('No sheets found in workbook');
+      const buffer = e.target.result;
+      let rows = [];
+      if (isCsv) {
+        rows = parseVipCsvRows(decodeCsvText(buffer));
+      } else {
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+        if (!workbook.SheetNames || !workbook.SheetNames.length) {
+          throw new Error('No worksheets found in upload');
+        }
+        const ws = workbook.Sheets[workbook.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
       }
-      const ws = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
       const refs = new Set(getVipDelegates().map(v => v.ref));
-      vipUploadPreviewData = rows.map((row, i) => {
-        const mapped = {};
-        Object.entries(row || {}).forEach(([k, v]) => { mapped[normalizeVipKey(k)] = String(v || '').trim(); });
-        const rec = {
-          ref: makeVipRef(refs),
-          title: mapped.title || '',
-          firstName: mapped.firstname || '',
-          lastName: mapped.lastname || '',
-          email: mapped.email || '',
-          mobile: mapped.mobile || '',
-          orgName: mapped.organization || mapped.organisation || '',
-          category: mapped.category || '',
-          notes: mapped.notes || '',
-          rsvpStatus: 'Pending',
-          rsvpDate: '',
-          checkedIn: false,
-          checkInDate: '',
-          notificationsSent: [],
-          uploadedDate: new Date().toISOString()
-        };
-        const isValid = !!(rec.firstName && rec.lastName && rec.email && rec.mobile);
-        return { ...rec, _valid: isValid, _row: i + 2 };
-      });
+      vipUploadPreviewData = mapVipUploadRows(rows, refs);
       renderVipUploadPreview();
-      showToast(`Loaded ${vipUploadPreviewData.length} rows for preview`);
+      const validCount = vipUploadPreviewData.filter(v => v._valid).length;
+      const invalidCount = vipUploadPreviewData.length - validCount;
+      showToast(`Loaded ${vipUploadPreviewData.length} rows (${validCount} valid${invalidCount ? `, ${invalidCount} invalid` : ''}) for preview`);
     } catch (err) {
       console.error(err);
-      showToast('Failed to parse Excel file. Please ensure it has valid data and required columns.', true);
+      showToast('Failed to parse upload file. Ensure it contains valid VIP columns and data.', true);
     }
   };
   reader.readAsArrayBuffer(file);
@@ -3308,20 +3447,28 @@ function renderVipUploadPreview() {
         <td>${esc(v.orgName || '—')}</td>
         <td>${esc(v.category || 'General')}</td>
         <td>${esc(v.notes || '—')}</td>
-        <td>${v._valid ? '<span class="badge badge-registered">Valid</span>' : '<span class="badge badge-cancelled">Missing Required</span>'}</td>
+        <td>${v._valid
+          ? '<span class="badge badge-registered">Valid</span>'
+          : `<span class="badge badge-cancelled">Row ${v._row}: Invalid</span><div style="margin-top:4px;font-size:0.72rem;color:#b42323;">${esc((v._errors || []).join('; ') || 'Missing required fields')}</div>`}
+        </td>
       </tr>
     `).join('');
   }
   const valid = vipUploadPreviewData.filter(v => v._valid).length;
   const invalid = vipUploadPreviewData.length - valid;
   const summary = document.getElementById('vipUploadSummary');
-  if (summary) summary.textContent = `Ready to import ${valid} valid VIP records${invalid ? ` (${invalid} invalid skipped)` : ''}.`;
+  if (summary) {
+    const invalidRows = vipUploadPreviewData.filter(v => !v._valid);
+    const invalidDetails = invalidRows.slice(0, 5).map(v => `Row ${v._row}: ${(v._errors || []).join(', ')}`).join(' | ');
+    summary.textContent = `Ready to import ${valid} valid VIP records${invalid ? ` (${invalid} invalid skipped)` : ''}.${invalidDetails ? ` ${invalidDetails}` : ''}`;
+  }
   const btn = document.getElementById('vipImportBtn');
   if (btn) btn.disabled = valid === 0;
 }
 
 function confirmVipImport() {
-  const validRows = vipUploadPreviewData.filter(v => v._valid).map(({ _valid, _row, ...rest }) => rest);
+  const invalidRows = vipUploadPreviewData.filter(v => !v._valid);
+  const validRows = vipUploadPreviewData.filter(v => v._valid).map(({ _valid, _row, _errors, ...rest }) => rest);
   if (!validRows.length) {
     showToast('No valid VIP records to import', true);
     return;
@@ -3333,7 +3480,8 @@ function confirmVipImport() {
   hydrateVipFilterOptions();
   updateVipRecipientCategoryOptions();
   renderVipDelegatesTable();
-  showToast(`Imported ${validRows.length} VIP delegates`);
+  const skipped = invalidRows.length;
+  showToast(`Imported ${validRows.length} VIP delegates${skipped ? `, skipped ${skipped} invalid row(s)` : ''}`);
 }
 
 function getVipRecipientsByGroup() {
@@ -4269,7 +4417,7 @@ document.getElementById('vipUploadModal').addEventListener('click', function(e) 
 const vipDropzone = document.getElementById('vipUploadDropzone');
 const vipFileInput = document.getElementById('vipFileInput');
 if (vipFileInput) {
-  vipFileInput.addEventListener('change', (e) => parseVipExcelFile(e.target.files[0]));
+  vipFileInput.addEventListener('change', (e) => parseVipUploadFile(e.target.files[0]));
 }
 if (vipDropzone) {
   ['dragenter', 'dragover'].forEach(evt => {
@@ -4286,7 +4434,7 @@ if (vipDropzone) {
   });
   vipDropzone.addEventListener('drop', e => {
     const file = e.dataTransfer?.files?.[0];
-    if (file) parseVipExcelFile(file);
+    if (file) parseVipUploadFile(file);
   });
 }
 
