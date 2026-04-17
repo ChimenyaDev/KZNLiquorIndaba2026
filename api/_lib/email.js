@@ -51,7 +51,8 @@ async function sendViaResend(to, toName, subject, html, text, attachments) {
     if (attachments && attachments.length > 0) {
       emailData.attachments = attachments.map(att => ({
         filename: att.filename,
-        content: att.content // Resend accepts base64 strings directly
+        content: att.content, // Resend accepts base64 strings directly
+        contentType: att.mime || 'application/octet-stream'
       }));
     }
 
