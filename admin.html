@@ -1507,7 +1507,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
   .vip-stats-grid { grid-template-columns: 1fr; }
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -1582,7 +1582,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
           VIP Delegates
           <span class="nav-badge nav-badge-vip" id="vipCountBadge">0</span>
         </a>
-        <a class="nav-item" data-view="delegates" onclick="switchView('delegates', this)">
+        <a class="nav-item" id="navDelegates" data-view="delegates" onclick="switchView('delegates', this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Delegates
           <span class="nav-badge" id="delegateCountBadge">0</span>
@@ -1695,7 +1695,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
           <div class="table-card">
             <div class="table-toolbar">
               <strong style="font-size:0.88rem;color:var(--navy);">Recent Registrations</strong>
-              <button class="btn btn-secondary btn-sm" onclick="switchView('delegates', document.querySelector('.nav-item[data-view=&quot;delegates&quot;]'))">View All →</button>
+              <button class="btn btn-secondary btn-sm" onclick="switchView('delegates', document.getElementById('navDelegates'))">View All →</button>
             </div>
             <div class="table-wrap">
               <table>
@@ -2566,7 +2566,7 @@ function makeVipRef(existingRefs = null) {
   let attempts = 0;
   do {
     attempts++;
-    if (attempts > 2000000) {
+    if (attempts > 10000) {
       throw new Error('Unable to generate unique VIP reference number');
     }
     ref = 'VIP2026-' + String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
@@ -3395,6 +3395,7 @@ async function sendVipNotification() {
 
   let success = true;
   let status = 'delivered';
+  let deliveryMessage = '';
   if (NOTIFY_API_URL) {
     try {
       const payload = {
@@ -3422,11 +3423,17 @@ async function sendVipNotification() {
       const result = await resp.json();
       success = !!result.success;
       status = success ? 'delivered' : 'partial';
+      deliveryMessage = success ? '' : ' (some deliveries may have failed)';
     } catch (err) {
       console.error(err);
       success = false;
       status = 'failed';
+      deliveryMessage = ' (API delivery failed; logged locally)';
     }
+  } else {
+    success = false;
+    status = 'logged_only';
+    deliveryMessage = ' (API not configured; logged locally only)';
   }
 
   const entry = {
@@ -3459,7 +3466,7 @@ async function sendVipNotification() {
   document.getElementById('vipNotifMessage').value = '';
   renderVipNotifLog();
   renderVipDelegatesTable();
-  showToast(success ? `VIP notification sent to ${recipients.length} recipients` : 'VIP notification logged but delivery failed', !success);
+  showToast(success ? `VIP notification sent to ${recipients.length} recipients${deliveryMessage}` : `VIP notification logged for ${recipients.length} recipients${deliveryMessage}`, !success);
 }
 
 function renderVipNotifLog() {
@@ -3710,7 +3717,7 @@ async function sendNotification() {
 
 function sendSingleNotif(ref) {
   switchView('notifications', document.querySelector('.nav-item[data-view="notifications"]'));
-  showToast('Tip: Use recipient group "All Delegates" or filter by district for targeted sends');
+  showToast('Opened Send Notifications. Select your recipient group to target this delegate type.');
 }
 
 // ===== NOTIFICATION LOG =====
