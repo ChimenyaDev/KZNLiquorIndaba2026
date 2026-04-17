@@ -1395,7 +1395,119 @@ tr:hover td { background: rgba(26,53,96,0.02); }
 }
 .crh h4 { font-size: 0.88rem; font-weight: 700; color: var(--navy); }
 .crh .crh-count { margin-left: auto; font-weight: 700; font-size: 0.88rem; }
+
+/* ===== VIP STYLES ===== */
+:root {
+  --vip-gold: #FFD700;
+  --vip-gold-dark: #DAA520;
+}
+.nav-item-vip.active {
+  background: rgba(218,165,32,0.16);
+  color: var(--vip-gold-dark);
+}
+.nav-item-vip:hover {
+  background: rgba(218,165,32,0.08);
+  color: #ffe082;
+}
+.nav-badge-vip {
+  background: var(--vip-gold);
+  color: #3f2d00;
+}
+.vip-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.stat-card.vip {
+  border-bottom-color: var(--vip-gold-dark);
+}
+.stat-card.vip .stat-icon {
+  background: rgba(218,165,32,0.16);
+  color: #8d6b00;
+}
+.vip-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(218,165,32,0.16);
+  color: #6b5000;
+}
+.vip-toggle-group {
+  display: inline-flex;
+  border: 1px solid var(--light-gray);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.vip-toggle-group button {
+  border: none;
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 8px;
+  color: var(--mid-gray);
+  cursor: pointer;
+}
+.vip-toggle-group button + button {
+  border-left: 1px solid var(--light-gray);
+}
+.vip-toggle-group button.active.yes {
+  background: rgba(45,164,78,0.14);
+  color: #1a7a35;
+}
+.vip-toggle-group button.active.no {
+  background: rgba(229,62,62,0.12);
+  color: #b42323;
+}
+.vip-toggle-group button.active.pending {
+  background: rgba(218,165,32,0.18);
+  color: #8d6b00;
+}
+.vip-checkin-btn {
+  border: none;
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.vip-checkin-btn.off { background: #eef2f8; color: var(--mid-gray); }
+.vip-checkin-btn.on { background: rgba(45,164,78,0.14); color: #1a7a35; }
+.vip-upload-dropzone {
+  border: 2px dashed #d7b95c;
+  background: rgba(255,215,0,0.08);
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  color: #6b5000;
+}
+.vip-upload-dropzone.dragover {
+  border-color: var(--vip-gold-dark);
+  background: rgba(255,215,0,0.16);
+}
+.vip-section-card {
+  border-top: 3px solid var(--vip-gold-dark);
+}
+.vip-log-controls {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.vip-log-search { min-width: 220px; }
+
+@media (max-width: 1200px) {
+  .vip-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .vip-stats-grid { grid-template-columns: 1fr; }
+}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -1461,35 +1573,40 @@ tr:hover td { background: rgba(26,53,96,0.02); }
 
       <nav class="sidebar-nav">
         <div class="nav-section-label">Main</div>
-        <a class="nav-item active" onclick="switchView('dashboard', this)">
+        <a class="nav-item active" data-view="dashboard" onclick="switchView('dashboard', this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           Dashboard
         </a>
-        <a class="nav-item" onclick="switchView('delegates', this)">
+        <a class="nav-item nav-item-vip" data-view="vips" onclick="switchView('vips', this)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 17h14l-1-9-4 3-2-6-2 6-4-3-1 9z"/><path d="M4 20h16"/></svg>
+          VIP Delegates
+          <span class="nav-badge nav-badge-vip" id="vipCountBadge">0</span>
+        </a>
+        <a class="nav-item" id="navDelegates" data-view="delegates" onclick="switchView('delegates', this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Delegates
           <span class="nav-badge" id="delegateCountBadge">0</span>
         </a>
 
         <div class="nav-section-label">Communications</div>
-        <a class="nav-item" onclick="switchView('notifications', this)">
+        <a class="nav-item" data-view="notifications" onclick="switchView('notifications', this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.39 18a19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           Send Notifications
         </a>
-        <a class="nav-item" onclick="switchView('notiflog', this)">
+        <a class="nav-item" data-view="notiflog" onclick="switchView('notiflog', this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Notification Log
         </a>
 
         <div class="nav-section-label">Event Day</div>
-        <a class="nav-item" onclick="switchView('checkin', this)">
+        <a class="nav-item" data-view="checkin" onclick="switchView('checkin', this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           Delegate Check-In
           <span class="nav-badge" id="checkinBadge" style="display:none;"></span>
         </a>
 
         <div class="nav-section-label">Data &amp; Reports</div>
-        <a class="nav-item" onclick="switchView('reports', this)">
+        <a class="nav-item" data-view="reports" onclick="switchView('reports', this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           Reports &amp; Exports
         </a>
@@ -1578,7 +1695,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
           <div class="table-card">
             <div class="table-toolbar">
               <strong style="font-size:0.88rem;color:var(--navy);">Recent Registrations</strong>
-              <button class="btn btn-secondary btn-sm" onclick="switchView('delegates', document.querySelector('.nav-item:nth-child(2))'))">View All →</button>
+              <button class="btn btn-secondary btn-sm" onclick="switchView('delegates', document.getElementById('navDelegates'))">View All →</button>
             </div>
             <div class="table-wrap">
               <table>
@@ -1662,6 +1779,88 @@ tr:hover td { background: rgba(26,53,96,0.02); }
             <div class="table-pagination">
               <span id="paginationInfo">Showing 0 delegates</span>
               <div class="pagination-controls" id="paginationControls"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIP DELEGATES VIEW -->
+        <div class="view" id="view-vips">
+          <div class="vip-stats-grid">
+            <div class="stat-card vip">
+              <div class="stat-icon">👑</div>
+              <div class="stat-label">Total VIPs Uploaded</div>
+              <div class="stat-value" id="vipStatTotal">0</div>
+            </div>
+            <div class="stat-card vip">
+              <div class="stat-icon">✓</div>
+              <div class="stat-label">RSVP Confirmed</div>
+              <div class="stat-value" id="vipStatYes">0</div>
+              <div class="stat-change up" id="vipStatYesPct">0%</div>
+            </div>
+            <div class="stat-card vip">
+              <div class="stat-icon">✕</div>
+              <div class="stat-label">RSVP Declined</div>
+              <div class="stat-value" id="vipStatNo">0</div>
+              <div class="stat-change" id="vipStatNoPct">0%</div>
+            </div>
+            <div class="stat-card vip">
+              <div class="stat-icon">…</div>
+              <div class="stat-label">RSVP Pending</div>
+              <div class="stat-value" id="vipStatPending">0</div>
+              <div class="stat-change" id="vipStatPendingPct">0%</div>
+            </div>
+            <div class="stat-card vip">
+              <div class="stat-icon">📍</div>
+              <div class="stat-label">Total Checked In</div>
+              <div class="stat-value" id="vipStatCheckedIn">0</div>
+              <div class="stat-change" id="vipStatCheckedInPct">0%</div>
+            </div>
+          </div>
+
+          <div class="table-card vip-section-card">
+            <div class="table-toolbar">
+              <div class="search-wrapper">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" class="search-input" id="vipSearch" placeholder="Search by VIP name, email, organization, reference..." oninput="filterVipDelegates()">
+              </div>
+              <select class="filter-select" id="vipCategoryFilter" onchange="filterVipDelegates()">
+                <option value="">All Categories</option>
+              </select>
+              <select class="filter-select" id="vipRsvpFilter" onchange="filterVipDelegates()">
+                <option value="">All RSVP</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="Pending">Pending</option>
+              </select>
+              <button class="btn btn-orange btn-sm" onclick="openVipUploadModal()">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                Upload VIP Delegates
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th onclick="sortVipTable('ref')">Reference Number ↕</th>
+                    <th onclick="sortVipTable('lastName')">Name ↕</th>
+                    <th onclick="sortVipTable('email')">Email ↕</th>
+                    <th onclick="sortVipTable('mobile')">Mobile ↕</th>
+                    <th onclick="sortVipTable('orgName')">Organization ↕</th>
+                    <th>RSVP Status</th>
+                    <th>Check-in Status</th>
+                    <th onclick="sortVipTable('category')">VIP Category ↕</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="vipTableBody">
+                  <tr><td colspan="10" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP delegates uploaded yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-pagination">
+              <span id="vipPaginationInfo">Showing 0 VIP delegates</span>
+              <div class="pagination-controls" id="vipPaginationControls"></div>
             </div>
           </div>
         </div>
@@ -1791,6 +1990,93 @@ tr:hover td { background: rgba(26,53,96,0.02); }
               <div id="notifPreviewContent" style="white-space:pre-wrap;font-size:0.88rem;line-height:1.7;color:#2d3748;"></div>
             </div>
           </div>
+
+          <div class="notification-compose vip-section-card">
+            <div class="nc-header" style="background:linear-gradient(135deg, #8d6b00 0%, #DAA520 55%, #FFD700 100%);">
+              <div>
+                <h3>VIP Notifications</h3>
+                <p style="color:rgba(64,41,0,0.75);">Send VIP-only batch communications with personalization tokens: {FirstName}, {LastName}, {VIPReference}, {Organization}.</p>
+              </div>
+            </div>
+            <div class="nc-body">
+              <div class="table-toolbar" style="padding:0 0 14px;border-bottom:none;">
+                <select class="filter-select" id="vipNotifType" onchange="applyVipTemplate(this.value)">
+                  <option value="">Select Notification Type</option>
+                  <option>Invitation</option>
+                  <option>Save the Date</option>
+                  <option>RSVP Reminder</option>
+                  <option>Check-in Instructions</option>
+                  <option>Welcome</option>
+                  <option>Transportation</option>
+                  <option>Thank You</option>
+                  <option>Custom</option>
+                </select>
+                <select class="filter-select" id="vipRecipientGroup" onchange="updateVipRecipientPreview()">
+                  <option value="all">All VIPs</option>
+                  <option value="category">By Category</option>
+                  <option value="pending">Pending RSVP</option>
+                  <option value="not_checked_in">Not Checked In</option>
+                </select>
+                <select class="filter-select" id="vipRecipientCategory" onchange="updateVipRecipientPreview()" style="display:none;">
+                  <option value="">Select category...</option>
+                </select>
+                <div style="margin-left:auto;font-size:0.82rem;color:var(--mid-gray);">Recipients: <strong id="vipRecipientCountDisplay">0</strong></div>
+              </div>
+              <div class="nc-field">
+                <label class="nc-label">Subject</label>
+                <input type="text" class="nc-input" id="vipNotifSubject" placeholder="VIP communication subject">
+              </div>
+              <div class="nc-field">
+                <label class="nc-label">Message</label>
+                <textarea class="nc-textarea" id="vipNotifMessage" placeholder="Compose message with {FirstName}, {LastName}, {VIPReference}, {Organization}"></textarea>
+              </div>
+              <div style="display:flex;justify-content:flex-end;">
+                <button class="btn btn-orange" onclick="sendVipNotification()">
+                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Send VIP Notification
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-card vip-section-card">
+            <div class="table-toolbar">
+              <strong style="font-size:0.88rem;color:var(--navy);">VIP Notification Log</strong>
+              <div class="vip-log-controls">
+                <input type="text" class="search-input vip-log-search" id="vipLogSearch" placeholder="Search subject, category, or sender..." oninput="renderVipNotifLog()">
+                <select class="filter-select" id="vipLogTypeFilter" onchange="renderVipNotifLog()">
+                  <option value="">All Types</option>
+                  <option value="Invitation">Invitation</option>
+                  <option value="Save the Date">Save the Date</option>
+                  <option value="RSVP Reminder">RSVP Reminder</option>
+                  <option value="Check-in Instructions">Check-in Instructions</option>
+                  <option value="Welcome">Welcome</option>
+                  <option value="Transportation">Transportation</option>
+                  <option value="Thank You">Thank You</option>
+                  <option value="Custom">Custom</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="clearVipNotifLog()">Clear VIP Notification Log</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="notif-log-table">
+                <thead>
+                  <tr>
+                    <th>Date/Time</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Subject</th>
+                    <th>Recipient Count</th>
+                    <th>Sent By</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="vipNotifLogBody">
+                  <tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP notifications sent yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- NOTIFICATION LOG VIEW -->
@@ -1885,6 +2171,34 @@ tr:hover td { background: rgba(26,53,96,0.02); }
               </div>
               <h4>Day 2 Check-In Report</h4>
               <p>Export who checked in and who did not arrive on Saturday 9 May 2026</p>
+            </div>
+            <div class="report-card vip-section-card" onclick="exportCSV('vip_register')">
+              <div class="report-icon" style="background:rgba(218,165,32,0.16);color:#8d6b00;">
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 17h14l-1-9-4 3-2-6-2 6-4-3-1 9z"/><path d="M4 20h16"/></svg>
+              </div>
+              <h4>VIP Register Report</h4>
+              <p>Export full VIP register details with RSVP and check-in status.</p>
+            </div>
+            <div class="report-card vip-section-card" onclick="exportCSV('vip_rsvp')">
+              <div class="report-icon" style="background:rgba(218,165,32,0.16);color:#8d6b00;">
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
+              <h4>VIP RSVP Report</h4>
+              <p>Export RSVP status counts and percentages for all VIP delegates.</p>
+            </div>
+            <div class="report-card vip-section-card" onclick="exportCSV('vip_checkin')">
+              <div class="report-icon" style="background:rgba(218,165,32,0.16);color:#8d6b00;">
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
+              <h4>VIP Check-In Report</h4>
+              <p>Export checked-in and pending VIP attendance activity.</p>
+            </div>
+            <div class="report-card vip-section-card" onclick="exportCSV('vip_notifications')">
+              <div class="report-icon" style="background:rgba(218,165,32,0.16);color:#8d6b00;">
+                <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.39 18a19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </div>
+              <h4>VIP Notification Activity</h4>
+              <p>Export dedicated VIP communication activity report.</p>
             </div>
           </div>
 
@@ -2055,6 +2369,57 @@ tr:hover td { background: rgba(26,53,96,0.02); }
   <span id="toastMsg">Action completed</span>
 </div>
 
+<!-- VIP UPLOAD MODAL -->
+<div class="modal-overlay" id="vipUploadModal">
+  <div class="modal" style="max-width:900px;">
+    <div class="modal-header">
+      <div>
+        <h3>Upload VIP Delegates</h3>
+        <div style="font-size:0.78rem;color:var(--mid-gray);margin-top:3px;">Accepted files: .xlsx, .xls</div>
+      </div>
+      <button class="modal-close" onclick="closeVipUploadModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="vipUploadDropzone" class="vip-upload-dropzone">
+        <div style="font-size:1.6rem;margin-bottom:6px;">👑</div>
+        <div style="font-weight:700;">Drag and drop Excel file here</div>
+        <div style="font-size:0.8rem;margin:6px 0 10px;">or</div>
+        <button class="btn btn-orange btn-sm" onclick="document.getElementById('vipFileInput').click()">Choose File</button>
+        <input type="file" id="vipFileInput" accept=".xlsx,.xls" style="display:none;">
+      </div>
+      <div style="margin-top:12px;font-size:0.8rem;color:var(--mid-gray);">
+        Required columns: FirstName, LastName, Email, Mobile. Optional: Title, Organization, Category, Notes.
+      </div>
+      <div class="table-wrap" style="margin-top:16px;max-height:300px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Ref</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Mobile</th>
+              <th>Organization</th>
+              <th>Category</th>
+              <th>Notes</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="vipUploadPreviewBody">
+            <tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:30px;">No file loaded.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+        <div id="vipUploadSummary" style="font-size:0.82rem;color:var(--mid-gray);">Ready to import 0 VIP records.</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" onclick="closeVipUploadModal()">Cancel</button>
+          <button class="btn btn-orange" id="vipImportBtn" onclick="confirmVipImport()" disabled>Import VIP Delegates</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== CREDENTIALS =====
 const USERS = {
@@ -2124,7 +2489,50 @@ let sortField = 'timestamp';
 let sortDir = -1;
 let filteredDelegates = [];
 let notificationLog = JSON.parse(localStorage.getItem('kzn_notif_log') || '[]');
+let vipSortField = 'uploadedDate';
+let vipSortDir = -1;
+let vipPage = 1;
+const VIP_PAGE_SIZE = 15;
+let vipFiltered = [];
+let vipUploadPreviewData = [];
+let vipDelegates = JSON.parse(localStorage.getItem('kzn_vip_delegates') || '[]');
+let vipNotificationLog = JSON.parse(localStorage.getItem('kzn_vip_notif_log') || '[]');
 let isSyncing = false;
+
+const VIP_NOTIF_TEMPLATES = {
+  'Invitation': {
+    subject: 'VIP Invitation — KZN Liquor Indaba 2026',
+    message: 'Dear {FirstName} {LastName},\n\nYou are invited as a VIP delegate to the KZN Liquor Indaba 2026.\nVIP Reference: {VIPReference}\nOrganization: {Organization}\n\nKind regards,\nKZN Liquor Indaba Team'
+  },
+  'Save the Date': {
+    subject: 'Save the Date — KZN Liquor Indaba 2026',
+    message: 'Dear {FirstName},\n\nPlease save the date for KZN Liquor Indaba 2026.\nVIP Ref: {VIPReference}\n\nRegards,\nKZN Liquor Indaba Team'
+  },
+  'RSVP Reminder': {
+    subject: 'RSVP Reminder — VIP Delegate',
+    message: 'Dear {FirstName},\n\nThis is a reminder to RSVP for the event.\nVIP Ref: {VIPReference}\n\nThank you.'
+  },
+  'Check-in Instructions': {
+    subject: 'VIP Check-in Instructions',
+    message: 'Dear {FirstName},\n\nPlease use your VIP reference {VIPReference} at check-in.\nWe look forward to welcoming you.'
+  },
+  'Welcome': {
+    subject: 'Welcome VIP Delegate',
+    message: 'Dear {FirstName},\n\nWelcome and thank you for confirming your participation.\nVIP Reference: {VIPReference}'
+  },
+  'Transportation': {
+    subject: 'VIP Transportation Information',
+    message: 'Dear {FirstName},\n\nYour VIP transportation details will be shared shortly.\nOrganization: {Organization}\nVIP Ref: {VIPReference}'
+  },
+  'Thank You': {
+    subject: 'Thank You — VIP Delegate',
+    message: 'Dear {FirstName},\n\nThank you for attending as a VIP delegate.\nWarm regards,\nKZN Liquor Indaba Team'
+  },
+  'Custom': {
+    subject: '',
+    message: ''
+  }
+};
 
 function getStoredDelegates() {
   return JSON.parse(localStorage.getItem('kzn_delegates') || '[]');
@@ -2136,6 +2544,44 @@ function getDelegates() {
 
 function saveDelegates(data) {
   localStorage.setItem('kzn_delegates', JSON.stringify(data));
+}
+
+function getVipDelegates() {
+  return JSON.parse(localStorage.getItem('kzn_vip_delegates') || '[]');
+}
+
+function saveVipDelegates(data) {
+  localStorage.setItem('kzn_vip_delegates', JSON.stringify(data));
+  vipDelegates = data;
+}
+
+function saveVipNotifLog(data) {
+  localStorage.setItem('kzn_vip_notif_log', JSON.stringify(data));
+  vipNotificationLog = data;
+}
+
+function makeVipRef(existingRefs = null) {
+  const refs = existingRefs || new Set(getVipDelegates().map(v => v.ref));
+  let ref = '';
+  let attempts = 0;
+  do {
+    attempts++;
+    if (attempts > 10000) {
+      throw new Error('Unable to generate unique VIP reference number');
+    }
+    ref = 'VIP2026-' + String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+  } while (refs.has(ref));
+  refs.add(ref);
+  return ref;
+}
+
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── Merge Sheet rows into localStorage (Sheet is master, local adds notificationsSent) ──
@@ -2296,6 +2742,7 @@ function switchView(view, el) {
   
   const titles = {
     dashboard: ['Dashboard', 'Overview of delegate registrations and event data'],
+    vips: ['VIP Delegates', 'Manage VIP uploads, RSVP status, and check-in tracking'],
     delegates: ['Delegate Register', 'Manage and view all registered delegates'],
     notifications: ['Send Notifications', 'Compose and send email or SMS communications'],
     notiflog: ['Notification Log', 'History of all communications sent to delegates'],
@@ -2307,8 +2754,13 @@ function switchView(view, el) {
   document.getElementById('viewTitle').textContent = title;
   document.getElementById('viewSubtitle').textContent = sub;
   
+  if (view === 'vips') renderVipDelegatesTable();
   if (view === 'delegates') renderDelegatesTable();
-  if (view === 'notifications') updateRecipientPreview();
+  if (view === 'notifications') {
+    updateRecipientPreview();
+    updateVipRecipientPreview();
+    renderVipNotifLog();
+  }
   if (view === 'notiflog') renderNotifLog();
   if (view === 'reports') renderSummaryStats();
   if (view === 'checkin') renderCheckinView();
@@ -2317,6 +2769,7 @@ function switchView(view, el) {
 // ===== REFRESH ALL DATA =====
 function refreshAll() {
   const delegates = getDelegates();
+  vipDelegates = getVipDelegates();
   
   // Update stats
   document.getElementById('statTotal').textContent = delegates.length;
@@ -2325,11 +2778,21 @@ function refreshAll() {
   document.getElementById('statDay2').textContent = delegates.filter(d => d.days && d.days.includes('day2')).length;
   document.getElementById('statNotifs').textContent = notificationLog.length;
   document.getElementById('delegateCountBadge').textContent = delegates.length;
+  const vipBadge = document.getElementById('vipCountBadge');
+  if (vipBadge) vipBadge.textContent = vipDelegates.length;
   
   renderDistrictChart(delegates);
   renderCategoryChart(delegates);
   renderRecentTable(delegates);
   updateRecipientPreview();
+  renderVipStats();
+  hydrateVipFilterOptions();
+  updateVipRecipientCategoryOptions();
+  if (document.getElementById('view-vips')?.classList.contains('active')) renderVipDelegatesTable();
+  if (document.getElementById('view-notifications')?.classList.contains('active')) {
+    updateVipRecipientPreview();
+    renderVipNotifLog();
+  }
 }
 
 // ===== CHARTS =====
@@ -2594,6 +3057,453 @@ function removeDelegate(ref) {
   showToast('Delegate removed from register');
 }
 
+// ===== VIP DELEGATES =====
+function renderVipStats() {
+  const vips = getVipDelegates();
+  const total = vips.length;
+  const yes = vips.filter(v => v.rsvpStatus === 'Yes').length;
+  const no = vips.filter(v => v.rsvpStatus === 'No').length;
+  const pending = vips.filter(v => v.rsvpStatus !== 'Yes' && v.rsvpStatus !== 'No').length;
+  const checkedIn = vips.filter(v => v.checkedIn).length;
+  const pct = n => total ? `${((n / total) * 100).toFixed(1)}%` : '0%';
+
+  const map = {
+    vipStatTotal: total, vipStatYes: yes, vipStatNo: no, vipStatPending: pending, vipStatCheckedIn: checkedIn,
+    vipStatYesPct: pct(yes), vipStatNoPct: pct(no), vipStatPendingPct: pct(pending), vipStatCheckedInPct: pct(checkedIn)
+  };
+  Object.entries(map).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  });
+}
+
+function hydrateVipFilterOptions() {
+  const sel = document.getElementById('vipCategoryFilter');
+  if (!sel) return;
+  const current = sel.value;
+  const categories = [...new Set(getVipDelegates().map(v => (v.category || '').trim()).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All Categories</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (categories.includes(current)) sel.value = current;
+}
+
+function renderVipDelegatesTable() {
+  vipDelegates = getVipDelegates();
+  const search = (document.getElementById('vipSearch')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('vipCategoryFilter')?.value || '';
+  const rsvpFilter = document.getElementById('vipRsvpFilter')?.value || '';
+
+  vipFiltered = vipDelegates.filter(v => {
+    if (search && !`${v.ref} ${v.firstName} ${v.lastName} ${v.email} ${v.mobile} ${v.orgName} ${v.category} ${v.notes}`.toLowerCase().includes(search)) return false;
+    if (catFilter && v.category !== catFilter) return false;
+    if (rsvpFilter && v.rsvpStatus !== rsvpFilter) return false;
+    return true;
+  });
+
+  vipFiltered.sort((a, b) => {
+    const av = a[vipSortField] || '';
+    const bv = b[vipSortField] || '';
+    return av < bv ? vipSortDir : av > bv ? -vipSortDir : 0;
+  });
+
+  const total = vipFiltered.length;
+  const pages = Math.max(1, Math.ceil(total / VIP_PAGE_SIZE));
+  if (vipPage > pages) vipPage = 1;
+  const start = (vipPage - 1) * VIP_PAGE_SIZE;
+  const paged = vipFiltered.slice(start, start + VIP_PAGE_SIZE);
+  const body = document.getElementById('vipTableBody');
+  if (!body) return;
+
+  if (!paged.length) {
+    body.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--mid-gray);padding:40px;">${total ? 'No VIP delegates match current filters.' : 'No VIP delegates uploaded yet.'}</td></tr>`;
+  } else {
+    body.innerHTML = paged.map(v => `
+      <tr>
+        <td style="font-family:monospace;font-size:0.78rem;">${esc(v.ref)}</td>
+        <td><div class="delegate-name">${esc(v.title ? v.title + ' ' : '')}${esc(v.firstName)} ${esc(v.lastName)}</div></td>
+        <td>${esc(v.email)}</td>
+        <td>${esc(v.mobile)}</td>
+        <td style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(v.orgName || '')}">${esc(v.orgName || '—')}</td>
+        <td>
+          <div class="vip-toggle-group">
+            <button class="${v.rsvpStatus === 'Yes' ? 'active yes' : ''}" onclick="setVipRsvp('${v.ref}', 'Yes')">Yes</button>
+            <button class="${v.rsvpStatus === 'No' ? 'active no' : ''}" onclick="setVipRsvp('${v.ref}', 'No')">No</button>
+            <button class="${v.rsvpStatus === 'Pending' ? 'active pending' : ''}" onclick="setVipRsvp('${v.ref}', 'Pending')">Pending</button>
+          </div>
+        </td>
+        <td>
+          <button class="vip-checkin-btn ${v.checkedIn ? 'on' : 'off'}" onclick="toggleVipCheckin('${v.ref}')">${v.checkedIn ? 'Checked In' : 'Not Checked In'}</button>
+        </td>
+        <td><span class="vip-pill">${esc(v.category || 'General')}</span></td>
+        <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(v.notes || '')}">${esc(v.notes || '—')}</td>
+        <td>
+          <div class="actions-cell">
+            <button class="action-btn" onclick="editVipDelegate('${v.ref}')" title="Edit VIP">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </button>
+            <button class="action-btn danger" onclick="removeVipDelegate('${v.ref}')" title="Delete VIP">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  const info = document.getElementById('vipPaginationInfo');
+  if (info) info.textContent = total ? `Showing ${start + 1}–${Math.min(start + VIP_PAGE_SIZE, total)} of ${total} VIP delegates` : 'Showing 0 VIP delegates';
+  const ctrl = document.getElementById('vipPaginationControls');
+  if (ctrl) {
+    ctrl.innerHTML = '';
+    for (let p = 1; p <= pages; p++) {
+      const btn = document.createElement('button');
+      btn.className = 'page-btn' + (p === vipPage ? ' active' : '');
+      btn.textContent = p;
+      btn.onclick = () => { vipPage = p; renderVipDelegatesTable(); };
+      ctrl.appendChild(btn);
+    }
+  }
+  renderVipStats();
+}
+
+function filterVipDelegates() {
+  vipPage = 1;
+  renderVipDelegatesTable();
+}
+
+function sortVipTable(field) {
+  if (vipSortField === field) vipSortDir *= -1;
+  else { vipSortField = field; vipSortDir = 1; }
+  renderVipDelegatesTable();
+}
+
+function setVipRsvp(ref, status) {
+  const now = new Date().toISOString();
+  const updated = getVipDelegates().map(v => v.ref === ref ? { ...v, rsvpStatus: status, rsvpDate: status === 'Pending' ? '' : now } : v);
+  saveVipDelegates(updated);
+  renderVipDelegatesTable();
+  updateVipRecipientPreview();
+}
+
+function toggleVipCheckin(ref) {
+  const now = new Date().toISOString();
+  const updated = getVipDelegates().map(v => v.ref === ref ? { ...v, checkedIn: !v.checkedIn, checkInDate: v.checkedIn ? '' : now } : v);
+  saveVipDelegates(updated);
+  renderVipDelegatesTable();
+  updateVipRecipientPreview();
+}
+
+function editVipDelegate(ref) {
+  const vips = getVipDelegates();
+  const idx = vips.findIndex(v => v.ref === ref);
+  if (idx < 0) return;
+  const v = vips[idx];
+  const firstName = prompt('First Name:', v.firstName);
+  if (firstName === null) return;
+  const lastName = prompt('Last Name:', v.lastName);
+  if (lastName === null) return;
+  const email = prompt('Email:', v.email);
+  if (email === null) return;
+  const mobile = prompt('Mobile:', v.mobile);
+  if (mobile === null) return;
+  if (!firstName.trim() || !lastName.trim() || !email.trim() || !mobile.trim()) {
+    showToast('First name, last name, email and mobile are required', true);
+    return;
+  }
+  vips[idx] = { ...v, firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), mobile: mobile.trim() };
+  saveVipDelegates(vips);
+  renderVipDelegatesTable();
+  showToast('VIP delegate updated');
+}
+
+function removeVipDelegate(ref) {
+  if (!confirm('Delete this VIP delegate?')) return;
+  saveVipDelegates(getVipDelegates().filter(v => v.ref !== ref));
+  renderVipDelegatesTable();
+  updateVipRecipientPreview();
+  showToast('VIP delegate removed');
+}
+
+function openVipUploadModal() {
+  vipUploadPreviewData = [];
+  const modal = document.getElementById('vipUploadModal');
+  if (modal) modal.classList.add('visible');
+  renderVipUploadPreview();
+}
+
+function closeVipUploadModal() {
+  const modal = document.getElementById('vipUploadModal');
+  if (modal) modal.classList.remove('visible');
+}
+
+function normalizeVipKey(key) {
+  return String(key || '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+}
+
+function parseVipExcelFile(file) {
+  if (!file) return;
+  const ext = file.name.toLowerCase();
+  if (!(ext.endsWith('.xlsx') || ext.endsWith('.xls'))) {
+    showToast('Please upload a valid .xlsx or .xls file', true);
+    return;
+  }
+  if (typeof XLSX === 'undefined') {
+    showToast('Excel parser not loaded. Refresh and try again.', true);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      if (!workbook.SheetNames || !workbook.SheetNames.length) {
+        throw new Error('No sheets found in workbook');
+      }
+      const ws = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const refs = new Set(getVipDelegates().map(v => v.ref));
+      vipUploadPreviewData = rows.map((row, i) => {
+        const mapped = {};
+        Object.entries(row || {}).forEach(([k, v]) => { mapped[normalizeVipKey(k)] = String(v || '').trim(); });
+        const rec = {
+          ref: makeVipRef(refs),
+          title: mapped.title || '',
+          firstName: mapped.firstname || '',
+          lastName: mapped.lastname || '',
+          email: mapped.email || '',
+          mobile: mapped.mobile || '',
+          orgName: mapped.organization || mapped.organisation || '',
+          category: mapped.category || '',
+          notes: mapped.notes || '',
+          rsvpStatus: 'Pending',
+          rsvpDate: '',
+          checkedIn: false,
+          checkInDate: '',
+          notificationsSent: [],
+          uploadedDate: new Date().toISOString()
+        };
+        const isValid = !!(rec.firstName && rec.lastName && rec.email && rec.mobile);
+        return { ...rec, _valid: isValid, _row: i + 2 };
+      });
+      renderVipUploadPreview();
+      showToast(`Loaded ${vipUploadPreviewData.length} rows for preview`);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to parse Excel file. Please ensure it has valid data and required columns.', true);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderVipUploadPreview() {
+  const body = document.getElementById('vipUploadPreviewBody');
+  if (!body) return;
+  if (!vipUploadPreviewData.length) {
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:30px;">No file loaded.</td></tr>';
+  } else {
+    body.innerHTML = vipUploadPreviewData.map(v => `
+      <tr>
+        <td style="font-family:monospace;font-size:0.75rem;">${esc(v.ref)}</td>
+        <td>${esc(v.firstName)} ${esc(v.lastName)}</td>
+        <td>${esc(v.email)}</td>
+        <td>${esc(v.mobile)}</td>
+        <td>${esc(v.orgName || '—')}</td>
+        <td>${esc(v.category || 'General')}</td>
+        <td>${esc(v.notes || '—')}</td>
+        <td>${v._valid ? '<span class="badge badge-registered">Valid</span>' : '<span class="badge badge-cancelled">Missing Required</span>'}</td>
+      </tr>
+    `).join('');
+  }
+  const valid = vipUploadPreviewData.filter(v => v._valid).length;
+  const invalid = vipUploadPreviewData.length - valid;
+  const summary = document.getElementById('vipUploadSummary');
+  if (summary) summary.textContent = `Ready to import ${valid} valid VIP records${invalid ? ` (${invalid} invalid skipped)` : ''}.`;
+  const btn = document.getElementById('vipImportBtn');
+  if (btn) btn.disabled = valid === 0;
+}
+
+function confirmVipImport() {
+  const validRows = vipUploadPreviewData.filter(v => v._valid).map(({ _valid, _row, ...rest }) => rest);
+  if (!validRows.length) {
+    showToast('No valid VIP records to import', true);
+    return;
+  }
+  const merged = [...getVipDelegates(), ...validRows];
+  saveVipDelegates(merged);
+  closeVipUploadModal();
+  vipUploadPreviewData = [];
+  hydrateVipFilterOptions();
+  updateVipRecipientCategoryOptions();
+  renderVipDelegatesTable();
+  showToast(`Imported ${validRows.length} VIP delegates`);
+}
+
+function getVipRecipientsByGroup() {
+  const group = document.getElementById('vipRecipientGroup')?.value || 'all';
+  const category = document.getElementById('vipRecipientCategory')?.value || '';
+  const vips = getVipDelegates();
+  if (group === 'category') return vips.filter(v => !category || v.category === category);
+  if (group === 'pending') return vips.filter(v => (v.rsvpStatus || 'Pending') === 'Pending');
+  if (group === 'not_checked_in') return vips.filter(v => !v.checkedIn);
+  return vips;
+}
+
+function updateVipRecipientCategoryOptions() {
+  const sel = document.getElementById('vipRecipientCategory');
+  if (!sel) return;
+  const current = sel.value;
+  const categories = [...new Set(getVipDelegates().map(v => (v.category || '').trim()).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Select category...</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (categories.includes(current)) sel.value = current;
+}
+
+function updateVipRecipientPreview() {
+  const group = document.getElementById('vipRecipientGroup');
+  const categorySel = document.getElementById('vipRecipientCategory');
+  if (!group || !categorySel) return;
+  categorySel.style.display = group.value === 'category' ? '' : 'none';
+  const count = getVipRecipientsByGroup().length;
+  const out = document.getElementById('vipRecipientCountDisplay');
+  if (out) out.textContent = count;
+}
+
+function applyVipTemplate(label) {
+  if (!label || !VIP_NOTIF_TEMPLATES[label]) return;
+  document.getElementById('vipNotifSubject').value = VIP_NOTIF_TEMPLATES[label].subject || '';
+  document.getElementById('vipNotifMessage').value = VIP_NOTIF_TEMPLATES[label].message || '';
+}
+
+function personalizeVipContent(input, vip) {
+  return String(input || '')
+    .replaceAll('{FirstName}', vip.firstName || '')
+    .replaceAll('{LastName}', vip.lastName || '')
+    .replaceAll('{VIPReference}', vip.ref || '')
+    .replaceAll('{Organization}', vip.orgName || '');
+}
+
+function getVipNotifLogForView() {
+  return JSON.parse(localStorage.getItem('kzn_vip_notif_log') || '[]');
+}
+
+async function sendVipNotification() {
+  const type = document.getElementById('vipNotifType').value;
+  const subject = document.getElementById('vipNotifSubject').value.trim();
+  const message = document.getElementById('vipNotifMessage').value.trim();
+  const recipients = getVipRecipientsByGroup();
+  if (!type) { showToast('Please select a VIP notification type from the dropdown', true); return; }
+  if (!subject) { showToast('Enter VIP notification subject', true); return; }
+  if (!message) { showToast('Enter VIP notification message', true); return; }
+  if (!recipients.length) { showToast('No VIP recipients match this filter', true); return; }
+
+  let success = true;
+  let status = 'delivered';
+  let deliveryMessage = '';
+  if (NOTIFY_API_URL) {
+    try {
+      const payload = {
+        notifType: 'email',
+        label: type,
+        subject,
+        message,
+        recipients: recipients.map(v => ({
+          firstName: v.firstName,
+          lastName: v.lastName,
+          fullName: `${v.firstName} ${v.lastName}`.trim(),
+          email: v.email,
+          mobile: v.mobile,
+          commPref: 'email',
+          ref: v.ref
+        })),
+        sentBy: currentUser?.name || 'Admin'
+      };
+      const resp = await fetch(NOTIFY_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const result = await resp.json();
+      success = !!result.success;
+      status = success ? 'delivered' : 'partial';
+      deliveryMessage = success ? '' : ' (some deliveries may have failed)';
+    } catch (err) {
+      console.error(err);
+      success = false;
+      status = 'failed';
+      deliveryMessage = ' (API delivery failed; logged locally)';
+    }
+  } else {
+    success = false;
+    status = 'logged_only';
+    deliveryMessage = ' (API not configured; logged locally only)';
+  }
+
+  const entry = {
+    timestamp: new Date().toISOString(),
+    type: 'email',
+    category: type,
+    subject,
+    message,
+    recipientCount: recipients.length,
+    recipients: recipients.map(v => v.ref),
+    success,
+    sentBy: currentUser?.name || 'admin',
+    status
+  };
+  const log = [entry, ...getVipNotifLogForView()];
+  saveVipNotifLog(log);
+
+  const updated = getVipDelegates().map(v => {
+    if (!recipients.find(r => r.ref === v.ref)) return v;
+    const personalized = personalizeVipContent(message, v);
+    return {
+      ...v,
+      notificationsSent: [...(v.notificationsSent || []), { timestamp: entry.timestamp, type, subject, status, message: personalized }]
+    };
+  });
+  saveVipDelegates(updated);
+
+  document.getElementById('vipNotifType').value = '';
+  document.getElementById('vipNotifSubject').value = '';
+  document.getElementById('vipNotifMessage').value = '';
+  renderVipNotifLog();
+  renderVipDelegatesTable();
+  showToast(success ? `VIP notification sent to ${recipients.length} recipients${deliveryMessage}` : `VIP notification logged for ${recipients.length} recipients${deliveryMessage}`, !success);
+}
+
+function renderVipNotifLog() {
+  vipNotificationLog = getVipNotifLogForView();
+  const body = document.getElementById('vipNotifLogBody');
+  if (!body) return;
+  const q = (document.getElementById('vipLogSearch')?.value || '').toLowerCase();
+  const typeFilter = document.getElementById('vipLogTypeFilter')?.value || '';
+  const filtered = vipNotificationLog.filter(n => {
+    if (typeFilter && n.category !== typeFilter) return false;
+    if (q && !`${n.category} ${n.subject} ${n.sentBy} ${n.status}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP notifications found.</td></tr>';
+    return;
+  }
+  body.innerHTML = filtered.map(n => `
+    <tr>
+      <td style="white-space:nowrap;">${new Date(n.timestamp).toLocaleString('en-ZA')}</td>
+      <td>${esc((n.type || 'email').toUpperCase())}</td>
+      <td>${esc(n.category || '—')}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(n.subject || '')}">${esc(n.subject || '—')}</td>
+      <td><strong>${n.recipientCount || 0}</strong></td>
+      <td>${esc(n.sentBy || 'admin')}</td>
+      <td><span class="badge ${n.status === 'delivered' ? 'badge-registered' : (n.status === 'failed' ? 'badge-cancelled' : 'badge-pending')}">${esc(n.status || 'unknown')}</span></td>
+    </tr>
+  `).join('');
+}
+
+function clearVipNotifLog() {
+  if (!confirm('Clear all VIP notification log records?')) return;
+  saveVipNotifLog([]);
+  renderVipNotifLog();
+  showToast('VIP notification log cleared');
+}
+
 // ===== NOTIFICATIONS =====
 function selectNotifType(type) {
   currentNotifType = type;
@@ -2806,8 +3716,8 @@ async function sendNotification() {
 }
 
 function sendSingleNotif(ref) {
-  switchView('notifications', document.querySelectorAll('.nav-item')[2]);
-  showToast('Tip: Use recipient group "All Delegates" or filter by district for targeted sends');
+  switchView('notifications', document.querySelector('.nav-item[data-view="notifications"]'));
+  showToast('Opened Send Notifications. Select your recipient group to target this delegate type.');
 }
 
 // ===== NOTIFICATION LOG =====
@@ -2889,6 +3799,34 @@ function exportCSV(type='all') {
     const headers = ['Date/Time','Type','Notification Category','Subject/Message','Recipients','Sent By'];
     const data = notificationLog.map(n => [new Date(n.date).toLocaleString('en-ZA'), n.type.toUpperCase(), n.label, (n.subject||n.message||'').replace(/,/g,' '), n.recipients, n.sentBy]);
     downloadCSV([headers, ...data], 'KZN_Indaba_Notification_Log.csv');
+    return;
+  } else if (type === 'vip_register') {
+    const vips = getVipDelegates();
+    const headers = ['VIP Reference','Title','First Name','Last Name','Email','Mobile','Organization','VIP Category','RSVP Status','RSVP Date','Checked In','Check-In Date','Notes','Uploaded Date'];
+    const data = vips.map(v => [v.ref, v.title || '', v.firstName, v.lastName, v.email, v.mobile, v.orgName || '', v.category || '', v.rsvpStatus || 'Pending', v.rsvpDate ? new Date(v.rsvpDate).toLocaleString('en-ZA') : '', v.checkedIn ? 'Yes' : 'No', v.checkInDate ? new Date(v.checkInDate).toLocaleString('en-ZA') : '', (v.notes || '').replace(/,/g, ' '), v.uploadedDate ? new Date(v.uploadedDate).toLocaleString('en-ZA') : '']);
+    downloadCSV([headers, ...data], 'KZN_Indaba_VIP_Register.csv');
+    return;
+  } else if (type === 'vip_rsvp') {
+    const vips = getVipDelegates();
+    const total = vips.length;
+    const yes = vips.filter(v => v.rsvpStatus === 'Yes').length;
+    const no = vips.filter(v => v.rsvpStatus === 'No').length;
+    const pending = vips.filter(v => v.rsvpStatus !== 'Yes' && v.rsvpStatus !== 'No').length;
+    const pct = n => total ? `${((n / total) * 100).toFixed(1)}%` : '0%';
+    const headers = ['RSVP Status','Count','Percentage'];
+    const data = [['Yes', yes, pct(yes)], ['No', no, pct(no)], ['Pending', pending, pct(pending)], ['Total', total, '100%']];
+    downloadCSV([headers, ...data], 'KZN_Indaba_VIP_RSVP_Report.csv');
+    return;
+  } else if (type === 'vip_checkin') {
+    const vips = getVipDelegates();
+    const headers = ['VIP Reference','Name','Organization','RSVP Status','Checked In','Check-In Date'];
+    const data = vips.map(v => [v.ref, `${v.firstName} ${v.lastName}`.trim(), v.orgName || '', v.rsvpStatus || 'Pending', v.checkedIn ? 'Checked In' : 'Not Checked In', v.checkInDate ? new Date(v.checkInDate).toLocaleString('en-ZA') : '']);
+    downloadCSV([headers, ...data], 'KZN_Indaba_VIP_Checkin_Report.csv');
+    return;
+  } else if (type === 'vip_notifications') {
+    const headers = ['Date/Time','Type','Category','Subject','Recipient Count','Sent By','Status'];
+    const data = getVipNotifLogForView().map(n => [new Date(n.timestamp).toLocaleString('en-ZA'), (n.type || 'email').toUpperCase(), n.category || '', (n.subject || '').replace(/,/g, ' '), n.recipientCount || 0, n.sentBy || 'admin', n.status || 'unknown']);
+    downloadCSV([headers, ...data], 'KZN_Indaba_VIP_Notification_Activity.csv');
     return;
   }
   
@@ -3324,6 +4262,33 @@ function toggleNotifGuide() {
 document.getElementById('delegateModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
+document.getElementById('vipUploadModal').addEventListener('click', function(e) {
+  if (e.target === this) closeVipUploadModal();
+});
+
+const vipDropzone = document.getElementById('vipUploadDropzone');
+const vipFileInput = document.getElementById('vipFileInput');
+if (vipFileInput) {
+  vipFileInput.addEventListener('change', (e) => parseVipExcelFile(e.target.files[0]));
+}
+if (vipDropzone) {
+  ['dragenter', 'dragover'].forEach(evt => {
+    vipDropzone.addEventListener(evt, e => {
+      e.preventDefault();
+      vipDropzone.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    vipDropzone.addEventListener(evt, e => {
+      e.preventDefault();
+      vipDropzone.classList.remove('dragover');
+    });
+  });
+  vipDropzone.addEventListener('drop', e => {
+    const file = e.dataTransfer?.files?.[0];
+    if (file) parseVipExcelFile(file);
+  });
+}
 
 // Auto-refresh every 60s when logged in — syncs from Sheet if configured
 setInterval(() => {
