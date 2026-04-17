@@ -62,6 +62,14 @@ if (!is_array($attachments)) {
     exit(json_encode(['success' => false, 'message' => 'attachments must be an array']));
 }
 
+$max_attachment_files = 5;
+$max_attachment_size  = 5 * 1024 * 1024;
+$max_total_size       = 10 * 1024 * 1024;
+if (count($attachments) > $max_attachment_files) {
+    http_response_code(422);
+    exit(json_encode(['success' => false, 'message' => "Maximum {$max_attachment_files} attachments allowed"]));
+}
+
 $allowed_mimes = [
     'application/pdf', 'image/jpeg', 'image/png', 'image/gif',
     'application/msword',
@@ -71,17 +79,62 @@ $allowed_mimes = [
     'text/plain', 'text/csv',
 ];
 
-foreach ($attachments as $att) {
+$ext_to_mime = [
+    'pdf' => 'application/pdf',
+    'doc' => 'application/msword',
+    'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls' => 'application/vnd.ms-excel',
+    'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'jpg' => 'image/jpeg',
+    'jpeg' => 'image/jpeg',
+    'png' => 'image/png',
+    'gif' => 'image/gif',
+    'txt' => 'text/plain',
+    'csv' => 'text/csv',
+];
+
+$total_attachment_size = 0;
+foreach ($attachments as &$att) {
     if (empty($att['filename']) || empty($att['content'])) {
         http_response_code(422);
         exit(json_encode(['success' => false, 'message' => 'Each attachment must have filename and content']));
     }
-    $mime = $att['mime'] ?? 'application/octet-stream';
+    $filename = trim((string)$att['filename']);
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $incoming_mime = strtolower(trim((string)($att['mime'] ?? '')));
+    $mime = in_array($incoming_mime, $allowed_mimes, true)
+        ? $incoming_mime
+        : ($ext_to_mime[$ext] ?? ($incoming_mime ?: 'application/octet-stream'));
     if (!in_array($mime, $allowed_mimes, true)) {
         http_response_code(422);
         exit(json_encode(['success' => false, 'message' => 'Attachment type not allowed: ' . $mime]));
     }
+
+    $content = preg_replace('/\s+/', '', (string)$att['content']);
+    $decoded = base64_decode($content, true);
+    if ($decoded === false) {
+        http_response_code(422);
+        exit(json_encode(['success' => false, 'message' => "Invalid base64 attachment content for {$filename}"]));
+    }
+
+    $declared_size = isset($att['size']) ? (int)$att['size'] : 0;
+    $actual_size = $declared_size > 0 ? $declared_size : strlen($decoded);
+    if ($actual_size > $max_attachment_size) {
+        http_response_code(422);
+        exit(json_encode(['success' => false, 'message' => "{$filename} exceeds 5MB per-file limit"]));
+    }
+
+    $total_attachment_size += $actual_size;
+    if ($total_attachment_size > $max_total_size) {
+        http_response_code(422);
+        exit(json_encode(['success' => false, 'message' => 'Total attachment size exceeds 10MB limit']));
+    }
+
+    $att['mime'] = $mime;
+    $att['content'] = $content;
+    $att['size'] = $actual_size;
 }
+unset($att);
 
 if (!check_rate_limit()) {
     http_response_code(429);

@@ -9,6 +9,94 @@ import { sendUmsgSms } from './_lib/sms.js';
 import { sendSmtpEmail, buildEmailHtml } from './_lib/email.js';
 import { setCorsHeaders, validateEmail, validatePhone, applyTemplateVars, checkRateLimit, logCommunication } from './_lib/helpers.js';
 
+const MAX_ATTACHMENT_FILES = 5;
+const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_TOTAL_BYTES = 10 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_MIMES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'text/plain',
+  'text/csv'
+]);
+const EXTENSION_TO_MIME = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  txt: 'text/plain',
+  csv: 'text/csv'
+};
+
+function getFileExtension(filename = '') {
+  const parts = String(filename).toLowerCase().split('.');
+  return parts.length > 1 ? parts.pop() : '';
+}
+
+function normalizeAndValidateAttachments(attachments) {
+  if (!attachments) return { ok: true, attachments: [] };
+  if (!Array.isArray(attachments)) {
+    return { ok: false, message: 'attachments must be an array' };
+  }
+  if (attachments.length > MAX_ATTACHMENT_FILES) {
+    return { ok: false, message: `Maximum ${MAX_ATTACHMENT_FILES} attachments allowed` };
+  }
+
+  let totalBytes = 0;
+  const normalized = [];
+  for (const att of attachments) {
+    if (!att || typeof att !== 'object') {
+      return { ok: false, message: 'Each attachment must be an object' };
+    }
+    const filename = String(att.filename || '').trim();
+    const content = String(att.content || '').trim();
+    const inputMime = String(att.mime || '').trim().toLowerCase();
+    if (!filename || !content) {
+      return { ok: false, message: 'Each attachment must include filename and content' };
+    }
+
+    const extension = getFileExtension(filename);
+    const inferredMime = EXTENSION_TO_MIME[extension] || '';
+    const mime = (ALLOWED_ATTACHMENT_MIMES.has(inputMime) ? inputMime : '')
+      || inferredMime
+      || inputMime
+      || 'application/octet-stream';
+
+    if (!ALLOWED_ATTACHMENT_MIMES.has(mime)) {
+      return { ok: false, message: `Attachment type not allowed: ${filename}` };
+    }
+
+    const sanitizedContent = content.replace(/\s/g, '');
+    if (!/^[A-Za-z0-9+/=]+$/.test(sanitizedContent)) {
+      return { ok: false, message: `Attachment content is not valid base64: ${filename}` };
+    }
+    const decoded = Buffer.from(sanitizedContent, 'base64');
+    const size = Number.isFinite(Number(att.size)) && Number(att.size) > 0
+      ? Number(att.size)
+      : decoded.byteLength;
+    if (size > MAX_ATTACHMENT_SIZE_BYTES) {
+      return { ok: false, message: `${filename} exceeds 5MB per-file limit` };
+    }
+    totalBytes += size;
+    if (totalBytes > MAX_ATTACHMENT_TOTAL_BYTES) {
+      return { ok: false, message: 'Total attachment size exceeds 10MB limit' };
+    }
+    normalized.push({ filename, content: sanitizedContent, mime, size });
+  }
+
+  return { ok: true, attachments: normalized };
+}
+
 export default async function handler(req, res) {
   try {
   // Only allow POST requests
@@ -34,6 +122,12 @@ export default async function handler(req, res) {
   if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
     return res.status(400).json({ success: false, message: 'recipients must be a non-empty array' });
   }
+
+  const attachmentValidation = normalizeAndValidateAttachments(attachments);
+  if (!attachmentValidation.ok) {
+    return res.status(422).json({ success: false, message: attachmentValidation.message });
+  }
+  const normalizedAttachments = attachmentValidation.attachments;
 
   // Check rate limit
   if (!checkRateLimit()) {
@@ -102,7 +196,7 @@ export default async function handler(req, res) {
         personalisedSubject,
         htmlBody,
         textBody,
-        attachments || []
+        normalizedAttachments
       );
 
       logCommunication({

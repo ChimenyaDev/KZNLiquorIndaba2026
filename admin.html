@@ -2024,14 +2024,34 @@ tr:hover td { background: rgba(26,53,96,0.02); }
               </div>
               <div class="nc-field">
                 <label class="nc-label">Subject</label>
-                <input type="text" class="nc-input" id="vipNotifSubject" placeholder="VIP communication subject">
+                <input type="text" class="nc-input" id="vipNotifSubject" placeholder="VIP communication subject" oninput="updateVipSendButtonState()">
               </div>
               <div class="nc-field">
                 <label class="nc-label">Message</label>
-                <textarea class="nc-textarea" id="vipNotifMessage" placeholder="Compose message with {FirstName}, {LastName}, {VIPReference}, {Organization}"></textarea>
+                <textarea class="nc-textarea" id="vipNotifMessage" placeholder="Compose message with {FirstName}, {LastName}, {VIPReference}, {Organization}" oninput="updateVipSendButtonState()"></textarea>
+              </div>
+              <div class="nc-field">
+                <label class="nc-label" style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+                  <span>Attachments (Email only)</span>
+                  <span id="vipAttachmentCount" style="font-size:0.78rem;color:var(--mid-gray);">0 / 5 files</span>
+                </label>
+                <div id="vipAttachmentDropzone" style="border:1.5px dashed var(--border);border-radius:10px;padding:14px;background:var(--light-gray);text-align:center;cursor:pointer;">
+                  <div style="font-size:0.82rem;color:var(--navy);font-weight:600;">Drag &amp; drop files here, or click to browse</div>
+                  <div style="font-size:0.75rem;color:var(--mid-gray);margin-top:4px;">Max 5 files • 5MB each • 10MB total</div>
+                  <input type="file" id="vipAttachmentInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt" style="display:none" onchange="handleVipAttachmentSelect(event)">
+                </div>
+                <div style="font-size:0.75rem;color:var(--mid-gray);margin-top:6px;">
+                  Allowed file types: PDF, Word (.doc/.docx), Excel (.xls/.xlsx), Images (.jpg/.jpeg/.png/.gif), Text (.txt)
+                </div>
+                <div id="vipAttachmentUploadStatus" style="font-size:0.75rem;color:var(--mid-gray);margin-top:6px;"></div>
+                <div id="vipAttachmentUploadProgressWrap" style="display:none;margin-top:6px;background:#e2e8f0;border-radius:999px;height:6px;overflow:hidden;">
+                  <div id="vipAttachmentUploadProgressBar" style="height:100%;width:0%;background:#DAA520;transition:width 0.2s ease;"></div>
+                </div>
+                <div id="vipAttachmentError" style="display:none;color:#c53030;font-size:0.78rem;margin-top:6px;"></div>
+                <div id="vipAttachmentList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
               </div>
               <div style="display:flex;justify-content:flex-end;">
-                <button class="btn btn-orange" onclick="sendVipNotification()">
+                <button class="btn btn-orange" id="sendVipNotifBtn" onclick="sendVipNotification()">
                   <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   Send VIP Notification
                 </button>
@@ -2067,12 +2087,13 @@ tr:hover td { background: rgba(26,53,96,0.02); }
                     <th>Category</th>
                     <th>Subject</th>
                     <th>Recipient Count</th>
+                    <th>Attachments</th>
                     <th>Sent By</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody id="vipNotifLogBody">
-                  <tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP notifications sent yet.</td></tr>
+                  <tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP notifications sent yet.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2483,7 +2504,10 @@ const NOTIF_TEMPLATES = {
 };
 
 let pendingAttachments = [];  // [{ filename, content (base64), mime, size }]
+let vipPendingAttachments = []; // [{ filename, content (base64), mime, size }]
 let currentNotifType = 'email'; // tracks the active channel: 'email' | 'sms' | 'both'
+let vipAttachmentUploadInProgress = false;
+let vipAttachmentSelectionError = '';
 let currentPage = 1;
 const PAGE_SIZE = 15;
 let sortField = 'timestamp';
@@ -2500,6 +2524,22 @@ const VIP_UPLOAD_SUCCESS_REF_PREVIEW = 3;
 const VIP_REF_PREFIX = 'VIP2026-';
 const VIP_UPLOAD_DEBUG = (localStorage.getItem('vip_upload_debug') ?? '1') !== '0';
 const VIP_UPLOAD_COLUMNS = ['NO', 'NAME OF ORGANISATION', 'TITLE', 'FIRSTNAME', 'LASTNAME', 'TEL/MOBILE', 'EMAIL ADDRESS', 'PRIORITY LEVEL'];
+const VIP_ATTACHMENT_LIMITS = {
+  maxFiles: 5,
+  maxPerFileBytes: 5 * 1024 * 1024,
+  maxTotalBytes: 10 * 1024 * 1024
+};
+const VIP_ALLOWED_ATTACHMENT_TYPES = {
+  'application/pdf': { ext: ['pdf'], icon: '📄' },
+  'application/msword': { ext: ['doc'], icon: '📝' },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { ext: ['docx'], icon: '📝' },
+  'application/vnd.ms-excel': { ext: ['xls'], icon: '📊' },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { ext: ['xlsx'], icon: '📊' },
+  'image/jpeg': { ext: ['jpg', 'jpeg'], icon: '🖼️' },
+  'image/png': { ext: ['png'], icon: '🖼️' },
+  'image/gif': { ext: ['gif'], icon: '🖼️' },
+  'text/plain': { ext: ['txt'], icon: '📃' }
+};
 let vipFiltered = [];
 let vipUploadPreviewData = [];
 let vipDelegates = JSON.parse(localStorage.getItem('kzn_vip_delegates') || '[]');
@@ -3624,12 +3664,187 @@ function updateVipRecipientPreview() {
   const count = getVipRecipientsByGroup().length;
   const out = document.getElementById('vipRecipientCountDisplay');
   if (out) out.textContent = count;
+  updateVipSendButtonState();
 }
 
 function applyVipTemplate(label) {
-  if (!label || !VIP_NOTIF_TEMPLATES[label]) return;
-  document.getElementById('vipNotifSubject').value = VIP_NOTIF_TEMPLATES[label].subject || '';
-  document.getElementById('vipNotifMessage').value = VIP_NOTIF_TEMPLATES[label].message || '';
+  if (label && VIP_NOTIF_TEMPLATES[label]) {
+    document.getElementById('vipNotifSubject').value = VIP_NOTIF_TEMPLATES[label].subject || '';
+    document.getElementById('vipNotifMessage').value = VIP_NOTIF_TEMPLATES[label].message || '';
+  }
+  updateVipSendButtonState();
+}
+
+function formatBytes(size) {
+  if (!Number.isFinite(size) || size <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = size;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i += 1;
+  }
+  return `${value.toFixed(value >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function getVipFileExtension(filename) {
+  const parts = String(filename || '').toLowerCase().split('.');
+  return parts.length > 1 ? parts.pop() : '';
+}
+
+function inferVipMimeFromExtension(ext) {
+  for (const [mime, data] of Object.entries(VIP_ALLOWED_ATTACHMENT_TYPES)) {
+    if ((data.ext || []).includes(ext)) return mime;
+  }
+  return '';
+}
+
+function getVipAttachmentIcon(mime, filename) {
+  if (VIP_ALLOWED_ATTACHMENT_TYPES[mime]?.icon) return VIP_ALLOWED_ATTACHMENT_TYPES[mime].icon;
+  const ext = getVipFileExtension(filename);
+  const inferred = inferVipMimeFromExtension(ext);
+  return VIP_ALLOWED_ATTACHMENT_TYPES[inferred]?.icon || '📎';
+}
+
+function isValidVipMime(mime, filename) {
+  if (VIP_ALLOWED_ATTACHMENT_TYPES[mime]) return true;
+  const ext = getVipFileExtension(filename);
+  if (!ext) return false;
+  const inferred = inferVipMimeFromExtension(ext);
+  return !!inferred && (!mime || mime === 'application/octet-stream' || mime === inferred);
+}
+
+function validateVipAttachmentSet(attachments) {
+  if (attachments.length > VIP_ATTACHMENT_LIMITS.maxFiles) {
+    return `Maximum ${VIP_ATTACHMENT_LIMITS.maxFiles} files allowed`;
+  }
+  let total = 0;
+  for (const att of attachments) {
+    if (!isValidVipMime(att.mime, att.filename)) {
+      return `Unsupported file type: ${att.filename}`;
+    }
+    if (att.size > VIP_ATTACHMENT_LIMITS.maxPerFileBytes) {
+      return `${att.filename} exceeds 5MB per file limit`;
+    }
+    total += Number(att.size || 0);
+  }
+  if (total > VIP_ATTACHMENT_LIMITS.maxTotalBytes) {
+    return 'Total attachment size exceeds 10MB limit';
+  }
+  return '';
+}
+
+function setVipAttachmentError(message = '') {
+  const errorEl = document.getElementById('vipAttachmentError');
+  if (!errorEl) return;
+  errorEl.textContent = message;
+  errorEl.style.display = message ? 'block' : 'none';
+}
+
+function updateVipAttachmentSummary() {
+  const countEl = document.getElementById('vipAttachmentCount');
+  if (countEl) {
+    const total = vipPendingAttachments.reduce((sum, item) => sum + Number(item.size || 0), 0);
+    countEl.textContent = `${vipPendingAttachments.length} / ${VIP_ATTACHMENT_LIMITS.maxFiles} files (${formatBytes(total)} / 10 MB)`;
+  }
+}
+
+function updateVipSendButtonState() {
+  const btn = document.getElementById('sendVipNotifBtn');
+  if (!btn) return;
+  const type = document.getElementById('vipNotifType')?.value?.trim();
+  const subject = document.getElementById('vipNotifSubject')?.value?.trim();
+  const message = document.getElementById('vipNotifMessage')?.value?.trim();
+  const recipients = getVipRecipientsByGroup().length;
+  const attachmentError = vipAttachmentSelectionError || validateVipAttachmentSet(vipPendingAttachments);
+  setVipAttachmentError(attachmentError);
+  btn.disabled = vipAttachmentUploadInProgress || !type || !subject || !message || recipients === 0 || !!attachmentError;
+}
+
+function renderVipAttachmentList() {
+  const list = document.getElementById('vipAttachmentList');
+  if (!list) return;
+  list.innerHTML = vipPendingAttachments.map((att, idx) => `
+    <div style="display:flex;align-items:center;gap:6px;background:var(--light-gray);border-radius:6px;padding:4px 10px;font-size:0.78rem;color:var(--navy);">
+      <span aria-hidden="true">${getVipAttachmentIcon(att.mime, att.filename)}</span>
+      <span title="${esc(att.filename)}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(att.filename)}</span>
+      <span style="color:var(--mid-gray)">(${formatBytes(att.size)})</span>
+      <button onclick="removeVipAttachment(${idx})" style="background:none;border:none;cursor:pointer;color:#c53030;font-size:0.95rem;padding:0 2px;" aria-label="Remove attachment">&#x2715;</button>
+    </div>
+  `).join('');
+  updateVipAttachmentSummary();
+  updateVipSendButtonState();
+}
+
+function removeVipAttachment(index) {
+  vipPendingAttachments.splice(index, 1);
+  vipAttachmentSelectionError = '';
+  renderVipAttachmentList();
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const result = String(e.target?.result || '');
+      const content = result.includes(',') ? result.split(',')[1] : result;
+      resolve(content);
+    };
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleVipAttachmentFiles(files) {
+  const selected = Array.from(files || []);
+  if (!selected.length) return;
+  const statusEl = document.getElementById('vipAttachmentUploadStatus');
+  const progressWrap = document.getElementById('vipAttachmentUploadProgressWrap');
+  const progressBar = document.getElementById('vipAttachmentUploadProgressBar');
+  vipAttachmentUploadInProgress = true;
+  if (progressWrap) progressWrap.style.display = 'block';
+  if (progressBar) progressBar.style.width = '0%';
+  if (statusEl) statusEl.textContent = `Preparing ${selected.length} file${selected.length !== 1 ? 's' : ''}...`;
+  updateVipSendButtonState();
+
+  const additions = [];
+  for (let i = 0; i < selected.length; i++) {
+    const file = selected[i];
+    if (statusEl) statusEl.textContent = `Processing ${file.name} (${i + 1}/${selected.length})`;
+    try {
+      const content = await readFileAsBase64(file);
+      additions.push({
+        filename: file.name,
+        content,
+        mime: file.type || inferVipMimeFromExtension(getVipFileExtension(file.name)) || 'application/octet-stream',
+        size: file.size || 0
+      });
+    } catch (err) {
+      console.error(err);
+      setVipAttachmentError(`Unable to read file: ${file.name}`);
+    }
+    if (progressBar) progressBar.style.width = `${Math.round(((i + 1) / selected.length) * 100)}%`;
+  }
+
+  const next = [...vipPendingAttachments, ...additions];
+  const validationError = validateVipAttachmentSet(next);
+  if (validationError) {
+    vipAttachmentSelectionError = validationError;
+  } else {
+    vipPendingAttachments = next;
+    vipAttachmentSelectionError = '';
+  }
+  renderVipAttachmentList();
+  vipAttachmentUploadInProgress = false;
+  if (statusEl) statusEl.textContent = vipPendingAttachments.length ? `Attachments ready: ${vipPendingAttachments.length}` : '';
+  if (progressWrap) progressWrap.style.display = 'none';
+  if (progressBar) progressBar.style.width = '0%';
+  updateVipSendButtonState();
+}
+
+function handleVipAttachmentSelect(event) {
+  handleVipAttachmentFiles(event?.target?.files || []);
+  if (event?.target) event.target.value = '';
 }
 
 function personalizeVipContent(input, vip) {
@@ -3653,81 +3868,117 @@ async function sendVipNotification() {
   if (!subject) { showToast('Enter VIP notification subject', true); return; }
   if (!message) { showToast('Enter VIP notification message', true); return; }
   if (!recipients.length) { showToast('No VIP recipients match this filter', true); return; }
+  const attachmentValidationError = vipAttachmentSelectionError || validateVipAttachmentSet(vipPendingAttachments);
+  if (attachmentValidationError) { showToast(attachmentValidationError, true); return; }
+
+  const sendBtn = document.getElementById('sendVipNotifBtn');
+  const sendBtnHtml = sendBtn?.innerHTML;
+  if (sendBtn) {
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Sending...';
+  }
+  const attachmentPayload = vipPendingAttachments.map(att => ({
+    filename: att.filename,
+    content: att.content,
+    mime: att.mime || inferVipMimeFromExtension(getVipFileExtension(att.filename)) || 'application/octet-stream',
+    size: Number(att.size || 0)
+  }));
 
   let success = true;
   let status = 'delivered';
   let deliveryMessage = '';
-  if (NOTIFY_API_URL) {
-    try {
-      const payload = {
-        notifType: 'email',
-        label: type,
-        subject,
-        message,
-        recipients: recipients.map(v => ({
-          firstName: v.firstName,
-          lastName: v.lastName,
-          fullName: `${v.firstName} ${v.lastName}`.trim(),
-          email: v.email,
-          mobile: v.mobile,
-          commPref: 'email',
-          ref: v.ref
-        })),
-        sentBy: currentUser?.name || 'Admin'
-      };
-      const resp = await fetch(NOTIFY_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const result = await resp.json();
-      success = !!result.success;
-      status = success ? 'delivered' : 'partial';
-      deliveryMessage = success ? '' : ' (some deliveries may have failed)';
-    } catch (err) {
-      console.error(err);
+  try {
+    if (NOTIFY_API_URL) {
+      try {
+        const payload = {
+          notifType: 'email',
+          label: type,
+          subject,
+          message,
+          recipients: recipients.map(v => ({
+            firstName: v.firstName,
+            lastName: v.lastName,
+            fullName: `${v.firstName} ${v.lastName}`.trim(),
+            email: v.email,
+            mobile: v.mobile,
+            commPref: 'email',
+            ref: v.ref
+          })),
+          attachments: attachmentPayload,
+          sentBy: currentUser?.name || 'Admin'
+        };
+        const resp = await fetch(NOTIFY_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const result = await resp.json();
+        success = !!result.success;
+        status = success ? 'delivered' : 'partial';
+        deliveryMessage = success ? '' : ' (some deliveries may have failed)';
+      } catch (err) {
+        console.error(err);
+        success = false;
+        status = 'failed';
+        deliveryMessage = ' (API delivery failed; logged locally)';
+      }
+    } else {
       success = false;
-      status = 'failed';
-      deliveryMessage = ' (API delivery failed; logged locally)';
+      status = 'logged_only';
+      deliveryMessage = ' (API not configured; logged locally only)';
     }
-  } else {
-    success = false;
-    status = 'logged_only';
-    deliveryMessage = ' (API not configured; logged locally only)';
-  }
 
-  const entry = {
-    timestamp: new Date().toISOString(),
-    type: 'email',
-    category: type,
-    subject,
-    message,
-    recipientCount: recipients.length,
-    recipients: recipients.map(v => v.ref),
-    success,
-    sentBy: currentUser?.name || 'admin',
-    status
-  };
-  const log = [entry, ...getVipNotifLogForView()];
-  saveVipNotifLog(log);
-
-  const updated = getVipDelegates().map(v => {
-    if (!recipients.find(r => r.ref === v.ref)) return v;
-    const personalized = personalizeVipContent(message, v);
-    return {
-      ...v,
-      notificationsSent: [...(v.notificationsSent || []), { timestamp: entry.timestamp, type, subject, status, message: personalized }]
+    const entry = {
+      timestamp: new Date().toISOString(),
+      type: 'email',
+      category: type,
+      subject,
+      message,
+      recipientCount: recipients.length,
+      recipients: recipients.map(v => v.ref),
+      attachmentCount: attachmentPayload.length,
+      attachments: attachmentPayload.map(({ filename, size }) => ({ filename, size })),
+      success,
+      sentBy: currentUser?.name || 'admin',
+      status
     };
-  });
-  saveVipDelegates(updated);
+    const log = [entry, ...getVipNotifLogForView()];
+    saveVipNotifLog(log);
 
-  document.getElementById('vipNotifType').value = '';
-  document.getElementById('vipNotifSubject').value = '';
-  document.getElementById('vipNotifMessage').value = '';
-  renderVipNotifLog();
-  renderVipDelegatesTable();
-  showToast(success ? `VIP notification sent to ${recipients.length} recipients${deliveryMessage}` : `VIP notification logged for ${recipients.length} recipients${deliveryMessage}`, !success);
+    const updated = getVipDelegates().map(v => {
+      if (!recipients.find(r => r.ref === v.ref)) return v;
+      const personalized = personalizeVipContent(message, v);
+      return {
+        ...v,
+        notificationsSent: [...(v.notificationsSent || []), { timestamp: entry.timestamp, type, subject, status, message: personalized, attachmentCount: attachmentPayload.length }]
+      };
+    });
+    saveVipDelegates(updated);
+
+    document.getElementById('vipNotifType').value = '';
+    document.getElementById('vipNotifSubject').value = '';
+    document.getElementById('vipNotifMessage').value = '';
+    vipPendingAttachments = [];
+    vipAttachmentSelectionError = '';
+    renderVipAttachmentList();
+    const statusText = document.getElementById('vipAttachmentUploadStatus');
+    if (statusText) statusText.textContent = '';
+    setVipAttachmentError('');
+    renderVipNotifLog();
+    renderVipDelegatesTable();
+    showToast(
+      success
+        ? `VIP notification sent to ${recipients.length} recipients${attachmentPayload.length ? ` with ${attachmentPayload.length} attachment${attachmentPayload.length !== 1 ? 's' : ''}` : ''}${deliveryMessage}`
+        : `VIP notification logged for ${recipients.length} recipients${deliveryMessage}`,
+      !success
+    );
+  } finally {
+    if (sendBtn) {
+      sendBtn.innerHTML = sendBtnHtml || 'Send VIP Notification';
+    }
+    updateVipSendButtonState();
+  }
 }
 
 function renderVipNotifLog() {
@@ -3738,11 +3989,12 @@ function renderVipNotifLog() {
   const typeFilter = document.getElementById('vipLogTypeFilter')?.value || '';
   const filtered = vipNotificationLog.filter(n => {
     if (typeFilter && n.category !== typeFilter) return false;
-    if (q && !`${n.category} ${n.subject} ${n.sentBy} ${n.status}`.toLowerCase().includes(q)) return false;
+    const attachmentNames = (n.attachments || []).map(a => a.filename).join(' ');
+    if (q && !`${n.category} ${n.subject} ${n.sentBy} ${n.status} ${attachmentNames}`.toLowerCase().includes(q)) return false;
     return true;
   });
   if (!filtered.length) {
-    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP notifications found.</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP notifications found.</td></tr>';
     return;
   }
   body.innerHTML = filtered.map(n => `
@@ -3752,6 +4004,7 @@ function renderVipNotifLog() {
       <td>${esc(n.category || '—')}</td>
       <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(n.subject || '')}">${esc(n.subject || '—')}</td>
       <td><strong>${n.recipientCount || 0}</strong></td>
+      <td title="${esc((n.attachments || []).map(a => a.filename).join(', '))}">${n.attachmentCount || (n.attachments || []).length || 0}${(n.attachments || []).length ? ` file${(n.attachments || []).length !== 1 ? 's' : ''}` : ''}</td>
       <td>${esc(n.sentBy || 'admin')}</td>
       <td><span class="badge ${n.status === 'delivered' ? 'badge-registered' : (n.status === 'failed' ? 'badge-cancelled' : 'badge-pending')}">${esc(n.status || 'unknown')}</span></td>
     </tr>
@@ -4085,8 +4338,18 @@ function exportCSV(type='all') {
     downloadCSV([headers, ...data], 'KZN_Indaba_VIP_Checkin_Report.csv');
     return;
   } else if (type === 'vip_notifications') {
-    const headers = ['Date/Time','Type','Category','Subject','Recipient Count','Sent By','Status'];
-    const data = getVipNotifLogForView().map(n => [new Date(n.timestamp).toLocaleString('en-ZA'), (n.type || 'email').toUpperCase(), n.category || '', (n.subject || '').replace(/,/g, ' '), n.recipientCount || 0, n.sentBy || 'admin', n.status || 'unknown']);
+    const headers = ['Date/Time','Type','Category','Subject','Recipient Count','Attachment Count','Attachments','Sent By','Status'];
+    const data = getVipNotifLogForView().map(n => [
+      new Date(n.timestamp).toLocaleString('en-ZA'),
+      (n.type || 'email').toUpperCase(),
+      n.category || '',
+      (n.subject || '').replace(/,/g, ' '),
+      n.recipientCount || 0,
+      n.attachmentCount || (n.attachments || []).length || 0,
+      (n.attachments || []).map(a => `${a.filename} (${formatBytes(Number(a.size || 0))})`).join('; '),
+      n.sentBy || 'admin',
+      n.status || 'unknown'
+    ]);
     downloadCSV([headers, ...data], 'KZN_Indaba_VIP_Notification_Activity.csv');
     return;
   }
@@ -4529,6 +4792,8 @@ document.getElementById('vipUploadModal').addEventListener('click', function(e) 
 
 const vipDropzone = document.getElementById('vipUploadDropzone');
 const vipFileInput = document.getElementById('vipFileInput');
+const vipAttachmentDropzone = document.getElementById('vipAttachmentDropzone');
+const vipAttachmentInput = document.getElementById('vipAttachmentInput');
 if (vipFileInput) {
   vipFileInput.addEventListener('change', (e) => parseVipUploadFile(e.target.files[0]));
 }
@@ -4550,6 +4815,36 @@ if (vipDropzone) {
     if (file) parseVipUploadFile(file);
   });
 }
+if (vipAttachmentDropzone && vipAttachmentInput) {
+  vipAttachmentDropzone.addEventListener('click', () => vipAttachmentInput.click());
+  ['dragenter', 'dragover'].forEach(evt => {
+    vipAttachmentDropzone.addEventListener(evt, e => {
+      e.preventDefault();
+      vipAttachmentDropzone.style.borderColor = '#DAA520';
+      vipAttachmentDropzone.style.background = 'rgba(255,215,0,0.08)';
+    });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    vipAttachmentDropzone.addEventListener(evt, e => {
+      e.preventDefault();
+      vipAttachmentDropzone.style.borderColor = '';
+      vipAttachmentDropzone.style.background = '';
+    });
+  });
+  vipAttachmentDropzone.addEventListener('drop', e => {
+    const files = e.dataTransfer?.files;
+    if (files?.length) handleVipAttachmentFiles(files);
+  });
+}
+['vipNotifType', 'vipNotifSubject', 'vipNotifMessage'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('input', updateVipSendButtonState);
+    el.addEventListener('change', updateVipSendButtonState);
+  }
+});
+updateVipAttachmentSummary();
+updateVipSendButtonState();
 
 // Auto-refresh every 60s when logged in — syncs from Sheet if configured
 setInterval(() => {
