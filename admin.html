@@ -1761,6 +1761,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
               <table>
                 <thead>
                   <tr>
+                    <th style="width:36px;text-align:center;"><input type="checkbox" id="delegateSelectAll" onchange="toggleSelectAllDelegates(this.checked)" title="Select all delegates on this page"></th>
                     <th onclick="sortTable('lastName')">Name ↕</th>
                     <th onclick="sortTable('orgName')">Organisation ↕</th>
                     <th onclick="sortTable('delegateCategory')">Category ↕</th>
@@ -1772,7 +1773,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
                   </tr>
                 </thead>
                 <tbody id="delegateTableBody">
-                  <tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:40px;">No delegates registered yet.</td></tr>
+                  <tr><td colspan="9" style="text-align:center;color:var(--mid-gray);padding:40px;">No delegates registered yet.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1841,6 +1842,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
               <table>
                 <thead>
                   <tr>
+                    <th style="width:36px;text-align:center;"><input type="checkbox" id="vipSelectAll" onchange="toggleSelectAllVips(this.checked)" title="Select all VIP delegates on this page"></th>
                     <th onclick="sortVipTable('ref')">Reference Number ↕</th>
                     <th onclick="sortVipTable('lastName')">Name ↕</th>
                     <th onclick="sortVipTable('email')">Email ↕</th>
@@ -1854,7 +1856,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
                   </tr>
                 </thead>
                 <tbody id="vipTableBody">
-                  <tr><td colspan="10" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP delegates uploaded yet.</td></tr>
+                  <tr><td colspan="11" style="text-align:center;color:var(--mid-gray);padding:40px;">No VIP delegates uploaded yet.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1961,6 +1963,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
                   <option value="shuttle">Delegates Needing Shuttle</option>
                   <option value="email_pref">Email Preference Delegates</option>
                   <option value="sms_pref">SMS Preference Delegates</option>
+                  <option value="selected">Selected Delegates</option>
                 </select>
               </div>
 
@@ -2016,6 +2019,8 @@ tr:hover td { background: rgba(26,53,96,0.02); }
                   <option value="category">By Category</option>
                   <option value="pending">Pending RSVP</option>
                   <option value="not_checked_in">Not Checked In</option>
+                  <option value="selected">Selected VIP Delegates</option>
+                  <option value="last_uploaded">Most Recent VIP Upload</option>
                 </select>
                 <select class="filter-select" id="vipRecipientCategory" onchange="updateVipRecipientPreview()" style="display:none;">
                   <option value="">Select category...</option>
@@ -2522,6 +2527,8 @@ const MAX_VIP_UPLOAD_ERROR_PREVIEW_ROWS = 5;
 const VIP_UPLOAD_PROGRESS_INTERVAL = 25;
 const VIP_UPLOAD_SUCCESS_REF_PREVIEW = 3;
 const VIP_REF_PREFIX = 'VIP2026-';
+const VIP_SHEET_NAME = 'VIP Delegates';
+const LAST_UPLOADED_VIP_REFS_KEY = 'kzn_last_uploaded_vip_refs';
 const VIP_UPLOAD_DEBUG = (localStorage.getItem('vip_upload_debug') ?? '1') !== '0';
 const VIP_UPLOAD_COLUMNS = ['NO', 'NAME OF ORGANISATION', 'TITLE', 'FIRSTNAME', 'LASTNAME', 'TEL/MOBILE', 'EMAIL ADDRESS', 'PRIORITY LEVEL'];
 const VIP_ATTACHMENT_LIMITS = {
@@ -2545,6 +2552,9 @@ let vipFiltered = [];
 let vipUploadPreviewData = [];
 let vipDelegates = JSON.parse(localStorage.getItem('kzn_vip_delegates') || '[]');
 let vipNotificationLog = JSON.parse(localStorage.getItem('kzn_vip_notif_log') || '[]');
+let selectedDelegateRefs = new Set();
+let selectedVipRefs = new Set();
+let lastUploadedVipRefs = normalizeRefList(JSON.parse(localStorage.getItem(LAST_UPLOADED_VIP_REFS_KEY) || '[]'));
 let isSyncing = false;
 
 const VIP_NOTIF_TEMPLATES = {
@@ -2606,6 +2616,100 @@ function saveVipDelegates(data) {
 function saveVipNotifLog(data) {
   localStorage.setItem('kzn_vip_notif_log', JSON.stringify(data));
   vipNotificationLog = data;
+}
+
+function normalizeRefList(refs) {
+  return (refs || [])
+    .map(ref => String(ref).trim())
+    .filter(ref => ref.length > 0);
+}
+
+function setLastUploadedVipRefs(refs) {
+  lastUploadedVipRefs = Array.from(new Set(normalizeRefList(refs)));
+  localStorage.setItem(LAST_UPLOADED_VIP_REFS_KEY, JSON.stringify(lastUploadedVipRefs));
+}
+
+function pruneSelectionSet(selectionSet, allowedRefs) {
+  const allowed = new Set((allowedRefs || []).filter(Boolean));
+  const next = new Set();
+  selectionSet.forEach(ref => {
+    if (allowed.has(ref)) next.add(ref);
+  });
+  return next;
+}
+
+function getCurrentDelegatePageRows() {
+  const start = (currentPage - 1) * PAGE_SIZE;
+  return filteredDelegates.slice(start, start + PAGE_SIZE);
+}
+
+function getCurrentVipPageRows() {
+  const start = (vipPage - 1) * VIP_PAGE_SIZE;
+  return vipFiltered.slice(start, start + VIP_PAGE_SIZE);
+}
+
+function toggleDelegateSelection(ref, checked) {
+  if (!ref) return;
+  if (checked) selectedDelegateRefs.add(ref);
+  else selectedDelegateRefs.delete(ref);
+  updateDelegateSelectAllControl();
+  updateRecipientPreview();
+}
+
+function toggleVipSelection(ref, checked) {
+  if (!ref) return;
+  if (checked) selectedVipRefs.add(ref);
+  else selectedVipRefs.delete(ref);
+  updateVipSelectAllControl();
+  updateVipRecipientPreview();
+}
+
+function toggleSelectAllDelegates(checked) {
+  getCurrentDelegatePageRows().forEach(d => {
+    if (!d?.ref) return;
+    if (checked) selectedDelegateRefs.add(d.ref);
+    else selectedDelegateRefs.delete(d.ref);
+  });
+  renderDelegatesTable();
+  updateRecipientPreview();
+}
+
+function toggleSelectAllVips(checked) {
+  getCurrentVipPageRows().forEach(v => {
+    if (!v?.ref) return;
+    if (checked) selectedVipRefs.add(v.ref);
+    else selectedVipRefs.delete(v.ref);
+  });
+  renderVipDelegatesTable();
+  updateVipRecipientPreview();
+}
+
+function updateDelegateSelectAllControl() {
+  const selectAll = document.getElementById('delegateSelectAll');
+  if (!selectAll) return;
+  const pageRows = getCurrentDelegatePageRows();
+  if (!pageRows.length) {
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+    return;
+  }
+  const selectedOnPage = pageRows.filter(d => selectedDelegateRefs.has(d.ref)).length;
+  selectAll.checked = selectedOnPage === pageRows.length;
+  selectAll.indeterminate = selectedOnPage > 0 && selectedOnPage < pageRows.length;
+}
+
+function updateVipSelectAllControl() {
+  const selectAll = document.getElementById('vipSelectAll');
+  if (!selectAll) return;
+  const pageRows = getCurrentVipPageRows();
+  if (!pageRows.length) {
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+    return;
+  }
+  const selectedOnPage = pageRows.filter(v => selectedVipRefs.has(v.ref)).length;
+  selectAll.checked = selectedOnPage === pageRows.length;
+  selectAll.indeterminate = selectedOnPage > 0 && selectedOnPage < pageRows.length;
 }
 
 function makeVipRef(existingRefs = null) {
@@ -2754,6 +2858,42 @@ async function pushNotifLogToSheet(entry) {
     });
   } catch (err) {
     console.warn('Could not push notification log to sheet:', err);
+  }
+}
+
+async function appendVipBatchToSheet(vipRows) {
+  if (!SHEET_URL || !Array.isArray(vipRows) || !vipRows.length) return { attempted: false, success: false };
+  const payload = {
+    action: 'vip_batch_upload',
+    sheetName: VIP_SHEET_NAME,
+    vipRows: vipRows.map(v => ({
+      ref: v.ref || '',
+      title: v.title || '',
+      firstName: v.firstName || '',
+      lastName: v.lastName || '',
+      email: v.email || '',
+      mobile: v.mobile || '',
+      orgName: v.orgName || '',
+      category: v.category || '',
+      notes: v.notes || '',
+      rsvpStatus: v.rsvpStatus || 'Pending',
+      checkedIn: !!v.checkedIn,
+      uploadedDate: v.uploadedDate || new Date().toISOString(),
+      uploadedBy: v.uploadedBy || (currentUser?.name || 'Admin')
+    }))
+  };
+
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    return { attempted: true, success: true };
+  } catch (err) {
+    console.warn('Could not push VIP batch to sheet:', err);
+    return { attempted: true, success: false };
   }
 }
 
@@ -2967,6 +3107,7 @@ function renderDelegatesTable() {
   const dayF = document.getElementById('dayFilter').value;
   
   let delegates = getDelegates();
+  selectedDelegateRefs = pruneSelectionSet(selectedDelegateRefs, delegates.map(d => d.ref));
   
   filteredDelegates = delegates.filter(d => {
     if (search && !`${d.firstName} ${d.lastName} ${d.email} ${d.orgName} ${d.mobile} ${d.ref}`.toLowerCase().includes(search)) return false;
@@ -2989,10 +3130,13 @@ function renderDelegatesTable() {
   const body = document.getElementById('delegateTableBody');
   
   if (!paged.length) {
-    body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--mid-gray);padding:40px;">${total === 0 && !search ? 'No delegates registered yet.' : 'No delegates match the current filters.'}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--mid-gray);padding:40px;">${total === 0 && !search ? 'No delegates registered yet.' : 'No delegates match the current filters.'}</td></tr>`;
   } else {
     body.innerHTML = paged.map(d => `
       <tr>
+        <td style="text-align:center;">
+          <input type="checkbox" data-ref="${esc(d.ref)}" ${selectedDelegateRefs.has(d.ref) ? 'checked' : ''} onchange="toggleDelegateSelection(this.dataset.ref, this.checked)" aria-label="Select delegate ${esc(d.firstName)} ${esc(d.lastName)}">
+        </td>
         <td>
           <div class="delegate-name">${d.title} ${d.firstName} ${d.lastName}</div>
           <div class="delegate-org">${d.ref}</div>
@@ -3022,6 +3166,7 @@ function renderDelegatesTable() {
       </tr>
     `).join('');
   }
+  updateDelegateSelectAllControl();
   
   // Pagination
   document.getElementById('paginationInfo').textContent = total ? `Showing ${start+1}–${Math.min(start+PAGE_SIZE, total)} of ${total} delegates` : '0 delegates';
@@ -3035,6 +3180,7 @@ function renderDelegatesTable() {
     btn.onclick = () => { currentPage = p; renderDelegatesTable(); };
     ctrl.appendChild(btn);
   }
+  updateRecipientPreview();
 }
 
 function filterDelegates() {
@@ -3145,6 +3291,9 @@ function hydrateVipFilterOptions() {
 
 function renderVipDelegatesTable() {
   vipDelegates = getVipDelegates();
+  selectedVipRefs = pruneSelectionSet(selectedVipRefs, vipDelegates.map(v => v.ref));
+  const validVipRefs = new Set(vipDelegates.map(v => v.ref));
+  setLastUploadedVipRefs(lastUploadedVipRefs.filter(ref => validVipRefs.has(ref)));
   const search = (document.getElementById('vipSearch')?.value || '').toLowerCase();
   const catFilter = document.getElementById('vipCategoryFilter')?.value || '';
   const rsvpFilter = document.getElementById('vipRsvpFilter')?.value || '';
@@ -3171,10 +3320,13 @@ function renderVipDelegatesTable() {
   if (!body) return;
 
   if (!paged.length) {
-    body.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--mid-gray);padding:40px;">${total ? 'No VIP delegates match current filters.' : 'No VIP delegates uploaded yet.'}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--mid-gray);padding:40px;">${total ? 'No VIP delegates match current filters.' : 'No VIP delegates uploaded yet.'}</td></tr>`;
   } else {
     body.innerHTML = paged.map(v => `
       <tr>
+        <td style="text-align:center;">
+          <input type="checkbox" data-ref="${esc(v.ref)}" ${selectedVipRefs.has(v.ref) ? 'checked' : ''} onchange="toggleVipSelection(this.dataset.ref, this.checked)" aria-label="Select VIP delegate ${esc(v.firstName)} ${esc(v.lastName)}">
+        </td>
         <td style="font-family:monospace;font-size:0.78rem;">${esc(v.ref)}</td>
         <td><div class="delegate-name">${esc(v.title ? v.title + ' ' : '')}${esc(v.firstName)} ${esc(v.lastName)}</div></td>
         <td>${esc(v.email)}</td>
@@ -3205,6 +3357,7 @@ function renderVipDelegatesTable() {
       </tr>
     `).join('');
   }
+  updateVipSelectAllControl();
 
   const info = document.getElementById('vipPaginationInfo');
   if (info) info.textContent = total ? `Showing ${start + 1}–${Math.min(start + VIP_PAGE_SIZE, total)} of ${total} VIP delegates` : 'Showing 0 VIP delegates';
@@ -3220,6 +3373,7 @@ function renderVipDelegatesTable() {
     }
   }
   renderVipStats();
+  updateVipRecipientPreview();
 }
 
 function filterVipDelegates() {
@@ -3275,6 +3429,8 @@ function editVipDelegate(ref) {
 function removeVipDelegate(ref) {
   if (!confirm('Delete this VIP delegate?')) return;
   saveVipDelegates(getVipDelegates().filter(v => v.ref !== ref));
+  selectedVipRefs.delete(ref);
+  setLastUploadedVipRefs(lastUploadedVipRefs.filter(r => r !== ref));
   renderVipDelegatesTable();
   updateVipRecipientPreview();
   showToast('VIP delegate removed');
@@ -3616,25 +3772,37 @@ function renderVipUploadPreview() {
   if (btn) btn.disabled = valid === 0;
 }
 
-function confirmVipImport() {
+async function confirmVipImport() {
   const invalidRows = vipUploadPreviewData.filter(v => !v._valid);
   const validRows = vipUploadPreviewData.filter(v => v._valid).map(({ _row, _errors, ...rest }) => rest);
   if (!validRows.length) {
     showToast('No valid VIP records to import', true);
     return;
   }
+  setVipUploadProgress(`Importing ${validRows.length} VIP delegate(s)...`);
   const merged = [...getVipDelegates(), ...validRows];
   saveVipDelegates(merged);
+  const importedRefsAll = validRows.map(v => v.ref).filter(Boolean);
+  setLastUploadedVipRefs(importedRefsAll);
+  const sheetSync = await appendVipBatchToSheet(validRows);
+  selectedVipRefs = new Set(importedRefsAll);
   const importedRefs = validRows.slice(0, VIP_UPLOAD_SUCCESS_REF_PREVIEW).map(v => v.ref).join(', ');
   vipUploadPreviewData = invalidRows;
   renderVipUploadPreview();
   hydrateVipFilterOptions();
   updateVipRecipientCategoryOptions();
+  const vipRecipientGroup = document.getElementById('vipRecipientGroup');
+  if (vipRecipientGroup) vipRecipientGroup.value = 'last_uploaded';
   renderVipDelegatesTable();
   const skipped = invalidRows.length;
+  const syncStatusText = !sheetSync.attempted
+    ? '(Google Sheets URL not configured; saved locally only)'
+    : (sheetSync.success
+      ? `Sync request sent to "${VIP_SHEET_NAME}" tab.`
+      : `Could not reach Google Sheets endpoint for "${VIP_SHEET_NAME}" tab; saved locally.`);
   setVipUploadProgress(skipped
-    ? `Imported ${validRows.length} VIP delegates. ${skipped} row(s) skipped - correct file and re-upload to retry.`
-    : `Imported ${validRows.length} VIP delegates successfully.`);
+    ? `Imported ${validRows.length} VIP delegates. ${syncStatusText} ${skipped} row(s) skipped - correct file and re-upload to retry.`
+    : `Imported ${validRows.length} VIP delegates successfully. ${syncStatusText}`);
   showToast(`Imported ${validRows.length} VIP delegates${skipped ? `, skipped ${skipped} invalid row(s)` : ''}${importedRefs ? `. Refs: ${importedRefs}${validRows.length > VIP_UPLOAD_SUCCESS_REF_PREVIEW ? '...' : ''}` : ''}`);
 }
 
@@ -3645,6 +3813,8 @@ function getVipRecipientsByGroup() {
   if (group === 'category') return vips.filter(v => !category || v.category === category);
   if (group === 'pending') return vips.filter(v => (v.rsvpStatus || 'Pending') === 'Pending');
   if (group === 'not_checked_in') return vips.filter(v => !v.checkedIn);
+  if (group === 'selected') return vips.filter(v => selectedVipRefs.has(v.ref));
+  if (group === 'last_uploaded') return vips.filter(v => lastUploadedVipRefs.includes(v.ref));
   return vips;
 }
 
@@ -4126,6 +4296,7 @@ function updateRecipientPreview() {
   if (!group) return;
   const val = group.value;
   const delegates = getDelegates();
+  selectedDelegateRefs = pruneSelectionSet(selectedDelegateRefs, delegates.map(d => d.ref));
   
   let count = 0;
   if (val === 'all') count = delegates.length;
@@ -4135,6 +4306,7 @@ function updateRecipientPreview() {
   else if (val === 'shuttle') count = delegates.filter(d => d.shuttle === 'yes').length;
   else if (val === 'email_pref') count = delegates.filter(d => d.commPref === 'email' || d.commPref === 'both').length;
   else if (val === 'sms_pref') count = delegates.filter(d => d.commPref === 'sms' || d.commPref === 'both').length;
+  else if (val === 'selected') count = delegates.filter(d => selectedDelegateRefs.has(d.ref)).length;
   
   const el = document.getElementById('recipientCountDisplay');
   if (el) el.textContent = count;
@@ -4159,6 +4331,7 @@ async function sendNotification() {
   else if (group === 'shuttle') recipients = delegates.filter(d => d.shuttle === 'yes');
   else if (group === 'email_pref') recipients = delegates.filter(d => d.commPref === 'email' || d.commPref === 'both');
   else if (group === 'sms_pref') recipients = delegates.filter(d => d.commPref === 'sms' || d.commPref === 'both');
+  else if (group === 'selected') recipients = delegates.filter(d => selectedDelegateRefs.has(d.ref));
   
   if (!recipients.length) { showToast('No delegates match this recipient group', true); return; }
 

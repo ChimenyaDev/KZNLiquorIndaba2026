@@ -133,11 +133,13 @@ Your URLs will be:
 
 ##### 2a. Create your Google Sheet
 
-Create a new Google Sheet with these exact column headers in **Row 1**:
+Create a new Google Sheet with these exact column headers in **Row 1** on your **main registrations tab**:
 
 ```
 Timestamp | Reference | Title | FirstName | LastName | IDNumber | Email | Mobile | CommPref | OrgName | LicenceNo | Category | District | Address | JobTitle | Days | GalaDinner | Shuttle | Accommodation | Dietary | Accessibility | HeardAbout | Topics | Status
 ```
+
+The script below will auto-create a separate tab named **`VIP Delegates`** for VIP batch uploads.
 
 ##### 2b. Deploy the Apps Script API
 
@@ -146,15 +148,23 @@ In your Google Sheet: **Extensions → Apps Script**
 Paste the following code and delete any existing code:
 
 ```javascript
-function doPost(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const data = JSON.parse(e.postData.contents);
+const MAIN_SHEET_NAME = 'Delegates';
+const VIP_SHEET_NAME = 'VIP Delegates';
+const MAIN_HEADERS = ['Timestamp','Reference','Title','FirstName','LastName','IDNumber','Email','Mobile','CommPref','OrgName','LicenceNo','Category','District','Address','JobTitle','Days','GalaDinner','Shuttle','Accommodation','Dietary','Accessibility','HeardAbout','Topics','Status'];
+const VIP_HEADERS = ['Timestamp','VIPReference','Title','FirstName','LastName','Email','Mobile','Organization','Category','Notes','RSVPStatus','CheckedIn','UploadedBy','UploadBatchId'];
 
-  // Ignore notification log pushes
-  if (data.action === 'log') {
-    return ContentService.createTextOutput('ok').setMimeType(ContentService.MimeType.TEXT);
-  }
+function getOrCreateSheet(name, headers) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) sheet = ss.insertSheet(name);
+  const firstRow = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  const needsHeaders = firstRow.every(cell => !cell);
+  if (needsHeaders) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  return sheet;
+}
 
+function appendNormalDelegate(data) {
+  const sheet = getOrCreateSheet(MAIN_SHEET_NAME, MAIN_HEADERS);
   sheet.appendRow([
     new Date(data.timestamp || new Date()).toLocaleString('en-ZA'),
     data.ref || '',
@@ -181,6 +191,49 @@ function doPost(e) {
     data.topics || '',
     data.status || 'Registered'
   ]);
+}
+
+function appendVipBatch(data) {
+  const sheet = getOrCreateSheet(data.sheetName || VIP_SHEET_NAME, VIP_HEADERS);
+  const rows = Array.isArray(data.vipRows) ? data.vipRows : [];
+  // `batchId` is optional in client payloads (the current admin upload omits it), so generate one if omitted.
+  const batchId = data.batchId || `VIP-${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss')}`;
+  rows.forEach(v => {
+    sheet.appendRow([
+      new Date(v.uploadedDate || new Date()).toLocaleString('en-ZA'),
+      v.ref || '',
+      v.title || '',
+      v.firstName || '',
+      v.lastName || '',
+      v.email || '',
+      v.mobile || '',
+      v.orgName || '',
+      v.category || '',
+      v.notes || '',
+      v.rsvpStatus || 'Pending',
+      v.checkedIn ? 'Yes' : 'No',
+      v.uploadedBy || 'Admin',
+      batchId
+    ]);
+  });
+}
+
+function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+
+  // Ignore notification log pushes
+  if (data.action === 'log') {
+    return ContentService.createTextOutput('ok').setMimeType(ContentService.MimeType.TEXT);
+  }
+
+  if (data.action === 'vip_batch_upload') {
+    appendVipBatch(data);
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'success', imported: (data.vipRows || []).length }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  appendNormalDelegate(data);
 
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'success', ref: data.ref }))
@@ -188,7 +241,10 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const action = (e && e.parameter && e.parameter.action) || 'get';
+  const sheet = action === 'get_vip'
+    ? getOrCreateSheet(VIP_SHEET_NAME, VIP_HEADERS)
+    : getOrCreateSheet(MAIN_SHEET_NAME, MAIN_HEADERS);
   const rows = sheet.getDataRange().getValues();
   const headers = rows[0];
   const data = rows.slice(1).map(row => {
