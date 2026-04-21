@@ -2414,7 +2414,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
         <input type="file" id="vipFileInput" accept=".xlsx,.xls,.csv,text/csv" style="display:none;">
       </div>
       <div style="margin-top:12px;font-size:0.8rem;color:var(--mid-gray);">
-        Required columns: FIRSTNAME, LASTNAME, EMAIL ADDRESS, TEL/MOBILE. Optional: TITLE, NAME OF ORGANISATION, PRIORITY LEVEL.
+        Required columns: EMAIL ADDRESS, TEL/MOBILE. Optional: FIRSTNAME, LASTNAME, TITLE, NAME OF ORGANISATION, PRIORITY LEVEL.
       </div>
       <div id="vipUploadProgress" role="status" aria-live="polite" aria-label="Upload progress status" style="margin-top:8px;font-size:0.8rem;color:var(--mid-gray);">No file selected.</div>
       <div class="table-wrap" style="margin-top:16px;max-height:300px;">
@@ -2528,6 +2528,7 @@ const VIP_UPLOAD_PROGRESS_INTERVAL = 25;
 const VIP_UPLOAD_SUCCESS_REF_PREVIEW = 3;
 const VIP_REF_PREFIX = 'VIP2026-';
 const VIP_SHEET_NAME = 'VIP Delegates';
+const VIP_DEFAULT_GUEST_NAME = 'Honoured Guest';
 const LAST_UPLOADED_VIP_REFS_KEY = 'kzn_last_uploaded_vip_refs';
 const VIP_UPLOAD_DEBUG = (localStorage.getItem('vip_upload_debug') ?? '1') !== '0';
 const VIP_UPLOAD_COLUMNS = ['NO', 'NAME OF ORGANISATION', 'TITLE', 'FIRSTNAME', 'LASTNAME', 'TEL/MOBILE', 'EMAIL ADDRESS', 'PRIORITY LEVEL'];
@@ -3558,8 +3559,8 @@ function isValidVipEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function isValidSouthAfricanMobile(value) {
-  return /^0\d{9}$/.test(value) || /^27\d{9}$/.test(value) || /^\+27\d{9}$/.test(value);
+function isValidVipMobile(value) {
+  return /^(?:\+?[1-9]\d{7,14}|0\d{7,14})$/.test(value);
 }
 
 function vipUploadLog(...args) {
@@ -3612,12 +3613,13 @@ function mapVipUploadRows(rows, refs, headerRowIndex = 0, onProgress = null) {
     if (valuesForEmptyCheck.every(v => !v)) continue;
 
     const errors = [];
-    if (!csvRow.firstName) errors.push('FIRSTNAME is required');
-    if (!csvRow.lastName) errors.push('LASTNAME is required');
     if (!csvRow.email) errors.push('EMAIL ADDRESS is required');
     if (!csvRow.mobile) errors.push('TEL/MOBILE is required');
     if (csvRow.email && !isValidVipEmail(csvRow.email)) errors.push('EMAIL ADDRESS format is invalid');
-    if (csvRow.mobile && !isValidSouthAfricanMobile(csvRow.mobile)) errors.push('TEL/MOBILE format is invalid (use 10-digit format: 0XXXXXXXXX, 27XXXXXXXXX, or +27XXXXXXXXX)');
+    if (csvRow.mobile && !isValidVipMobile(csvRow.mobile)) errors.push('TEL/MOBILE format is invalid (use international format like +254712345678 or a local number with 8-15 digits)');
+
+    const firstName = csvRow.firstName || VIP_DEFAULT_GUEST_NAME;
+    const lastName = csvRow.lastName || VIP_DEFAULT_GUEST_NAME;
 
     const emailKey = csvRow.email.toLowerCase();
     if (emailKey) {
@@ -3634,8 +3636,8 @@ function mapVipUploadRows(rows, refs, headerRowIndex = 0, onProgress = null) {
     mappedRows.push({
       ref: makeVipRef(refs),
       title: csvRow.title,
-      firstName: csvRow.firstName,
-      lastName: csvRow.lastName,
+      firstName,
+      lastName,
       email: csvRow.email,
       mobile: csvRow.mobile,
       orgName: csvRow.orgName,
@@ -3726,7 +3728,7 @@ function parseVipUploadFile(file) {
     } catch (err) {
       console.error(err);
       const parseError = err?.message || 'Failed to parse file';
-      setVipUploadProgress(`${parseError}. Required columns: FIRSTNAME, LASTNAME, EMAIL ADDRESS, TEL/MOBILE.`, true);
+      setVipUploadProgress(`${parseError}. Required columns: EMAIL ADDRESS, TEL/MOBILE.`, true);
       showToast(`${parseError}. Ensure required columns are present and CSV uses semicolon (;) delimiters.`, true);
     }
   };
