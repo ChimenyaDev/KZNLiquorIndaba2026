@@ -3560,7 +3560,7 @@ function isValidVipEmail(email) {
 }
 
 function isValidVipMobile(value) {
-  return /^(?:\+?[1-9]\d{7,14}|0\d{6,14})$/.test(value);
+  return /^(?:\+?[1-9]\d{7,14}|0\d{7,14})$/.test(value);
 }
 
 function vipUploadLog(...args) {
@@ -3616,7 +3616,7 @@ function mapVipUploadRows(rows, refs, headerRowIndex = 0, onProgress = null) {
     if (!csvRow.email) errors.push('EMAIL ADDRESS is required');
     if (!csvRow.mobile) errors.push('TEL/MOBILE is required');
     if (csvRow.email && !isValidVipEmail(csvRow.email)) errors.push('EMAIL ADDRESS format is invalid');
-    if (csvRow.mobile && !isValidVipMobile(csvRow.mobile)) errors.push('TEL/MOBILE format is invalid (use international format like +1234567890 or a valid local number)');
+    if (csvRow.mobile && !isValidVipMobile(csvRow.mobile)) errors.push('TEL/MOBILE format is invalid (use international format like +254712345678 or a local number with 8-15 digits)');
 
     const firstName = csvRow.firstName || VIP_DEFAULT_GUEST_NAME;
     const lastName = csvRow.lastName || VIP_DEFAULT_GUEST_NAME;
