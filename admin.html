@@ -1915,6 +1915,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
                 <label class="nc-label">Notification Template</label>
                 <select class="nc-input" id="notifTypeLabel" onchange="applyTemplate(this.value)">
                   <option value="">— Select a template or compose custom —</option>
+                  <option>Invitation</option>
                   <option>Registration Confirmation</option>
                   <option>Joining Instructions</option>
                   <option>Event Reminder (1 week before)</option>
@@ -1941,16 +1942,20 @@ tr:hover td { background: rgba(26,53,96,0.02); }
 
               <!-- File attachments (email only) -->
               <div class="nc-field" id="attachmentsField">
-                <label class="nc-label">Attachments (Email only)</label>
+                <label class="nc-label" style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+                  <span>Attachments (Email only)</span>
+                  <span id="attachmentCount" style="font-size:0.78rem;color:var(--mid-gray);">0 / 5 files</span>
+                </label>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                   <label style="cursor:pointer;background:var(--light-gray);border:1.5px dashed var(--border);border-radius:8px;padding:8px 16px;font-size:0.83rem;color:var(--navy);display:flex;align-items:center;gap:6px;">
                     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                     Add File
-                    <input type="file" id="attachmentInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.jpg,.jpeg,.png" style="display:none" onchange="handleAttachmentSelect(event)">
+                    <input type="file" id="attachmentInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.jpg,.jpeg,.png,.gif" style="display:none" onchange="handleAttachmentSelect(event)">
                   </label>
                   <div id="attachmentList" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
                 </div>
-                <div style="font-size:0.75rem;color:var(--mid-gray);margin-top:4px;">Allowed: PDF, Word, Excel, CSV, TXT, JPG, PNG</div>
+                <div style="font-size:0.75rem;color:var(--mid-gray);margin-top:4px;">Max 5 files · 5MB each · 10MB total &nbsp;|&nbsp; Allowed: PDF, Word, Excel, CSV, TXT, JPG, PNG, GIF</div>
+                <div id="attachmentError" style="display:none;color:#c53030;font-size:0.78rem;margin-top:4px;"></div>
               </div>
 
               <div class="nc-field">
@@ -2474,6 +2479,10 @@ const NOTIFY_API_URL = 'api/notify.js';
 
 // ── Predefined notification templates ────────────────────────────────────────
 const NOTIF_TEMPLATES = {
+  'Invitation': {
+    subject: 'Invitation to Attend — KZN Liquor Indaba 2026',
+    message: `Dear {firstName},\n\nYou are invited to attend the KZN Liquor Indaba 2026.\n\nKZNERA has updated the registration platform. Delegates are now required to complete their registration online using the official registration platform:\n\nhttps://indaba2026.kznera.org.za/\n\nEvent Dates: {eventDate}\nVenue: {venue}\n\nPlease complete your registration as soon as possible. You will receive joining instructions and further details closer to the event.\n\nFor enquiries: liquorindaba@kznera.org.za\n\nKind regards,\nKZN Liquor Indaba 2026 Team`,
+  },
   'Registration Confirmation': {
     subject: 'KZN Liquor Indaba 2026 – Registration Confirmed ({referenceNumber})',
     message: `\nYour registration for the KZN Liquor Indaba 2026 has been confirmed.\n\nReference Number: {referenceNumber}\nEvent Dates: {eventDate}\nVenue: {venue}\n\nPlease keep this reference number for your records. Full joining instructions will be sent closer to the event.\n\nFor enquiries: liquorindaba@kznera.co.za\n\nKind regards,\nKZN Liquor Indaba 2026 Team`,
@@ -2561,7 +2570,7 @@ let isSyncing = false;
 const VIP_NOTIF_TEMPLATES = {
   'Invitation': {
     subject: 'VIP Invitation — KZN Liquor Indaba 2026',
-    message: 'Dear {FirstName} {LastName},\n\nYou are invited as a VIP delegate to the KZN Liquor Indaba 2026.\nVIP Reference: {VIPReference}\nOrganization: {Organization}\n\nKind regards,\nKZN Liquor Indaba Team'
+    message: 'Dear {FirstName} {LastName},\n\nYou are cordially invited as a VIP delegate to the KZN Liquor Indaba 2026.\n\nKZNERA has updated the registration platform. VIP delegates are also required to complete their registration using the official registration platform:\n\nhttps://indaba2026.kznera.org.za/\n\nVIP Reference: {VIPReference}\nOrganisation: {Organization}\n\nEvent Dates: Friday 8 May \u2013 Saturday 9 May 2026\nVenue: Durban, KwaZulu-Natal\n\nFurther joining instructions, including VIP access details, will be communicated closer to the event.\n\nFor enquiries: liquorindaba@kznera.org.za\n\nKind regards,\nKZN Liquor Indaba 2026 Team'
   },
   'Save the Date': {
     subject: 'Save the Date — KZN Liquor Indaba 2026',
@@ -4239,9 +4248,36 @@ function updateSmsCount() {
   el.style.color = len > (isUnicode ? 70 : 160) ? '#c53030' : 'var(--mid-gray)';
 }
 
+function setAttachmentError(message) {
+  const errorEl = document.getElementById('attachmentError');
+  if (!errorEl) return;
+  errorEl.textContent = message || '';
+  errorEl.style.display = message ? 'block' : 'none';
+}
+
 function handleAttachmentSelect(event) {
   const files = Array.from(event.target.files);
-  files.forEach(file => {
+  event.target.value = ''; // reset so same file can be re-added
+  setAttachmentError('');
+
+  for (const file of files) {
+    if (pendingAttachments.length >= VIP_ATTACHMENT_LIMITS.maxFiles) {
+      setAttachmentError(`Maximum ${VIP_ATTACHMENT_LIMITS.maxFiles} attachments allowed`);
+      break;
+    }
+    if (!isValidVipMime(file.type, file.name)) {
+      setAttachmentError(`Unsupported file type: ${file.name}`);
+      continue;
+    }
+    if (file.size > VIP_ATTACHMENT_LIMITS.maxPerFileBytes) {
+      setAttachmentError(`${file.name} exceeds 5MB per-file limit`);
+      continue;
+    }
+    const currentTotal = pendingAttachments.reduce((sum, a) => sum + Number(a.size || 0), 0);
+    if (currentTotal + file.size > VIP_ATTACHMENT_LIMITS.maxTotalBytes) {
+      setAttachmentError('Total attachment size would exceed 10MB limit');
+      break;
+    }
     const reader = new FileReader();
     reader.onload = e => {
       const base64 = e.target.result.split(',')[1];
@@ -4249,8 +4285,7 @@ function handleAttachmentSelect(event) {
       renderAttachmentList();
     };
     reader.readAsDataURL(file);
-  });
-  event.target.value = ''; // reset so same file can be re-added
+  }
 }
 
 function renderAttachmentList() {
@@ -4263,10 +4298,16 @@ function renderAttachmentList() {
       <button onclick="removeAttachment(${i})" style="background:none;border:none;cursor:pointer;color:#c53030;font-size:0.9rem;padding:0 2px;">&#x2715;</button>
     </div>
   `).join('');
+  const countEl = document.getElementById('attachmentCount');
+  if (countEl) {
+    const total = pendingAttachments.reduce((sum, a) => sum + Number(a.size || 0), 0);
+    countEl.textContent = `${pendingAttachments.length} / ${VIP_ATTACHMENT_LIMITS.maxFiles} files (${formatBytes(total)} / ${formatBytes(VIP_ATTACHMENT_LIMITS.maxTotalBytes)})`;
+  }
 }
 
 function removeAttachment(idx) {
   pendingAttachments.splice(idx, 1);
+  setAttachmentError('');
   renderAttachmentList();
 }
 
@@ -4337,6 +4378,9 @@ async function sendNotification() {
   
   if (!recipients.length) { showToast('No delegates match this recipient group', true); return; }
 
+  const attachmentValidationError = validateVipAttachmentSet(pendingAttachments);
+  if (attachmentValidationError) { showToast(attachmentValidationError, true); return; }
+
   const btn = document.getElementById('sendNotifBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Sending...'; }
 
@@ -4372,7 +4416,7 @@ async function sendNotification() {
           commPref:  d.commPref,
           ref:       d.ref,
         })),
-        attachments: pendingAttachments.map(({ filename, content, mime }) => ({ filename, content, mime })),
+        attachments: pendingAttachments.map(({ filename, content, mime, size }) => ({ filename, content, mime, size })),
         sentBy:      currentUser?.name || 'Admin',
       };
 
