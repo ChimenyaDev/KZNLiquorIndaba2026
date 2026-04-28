@@ -1629,7 +1629,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
           <p id="viewSubtitle">Overview of delegate registrations and event data</p>
         </div>
         <div class="topbar-actions">
-          <a href="registration.html" class="btn btn-secondary" style="text-decoration:none;" target="_blank">
+          <a href="https://indaba2026.kznera.org.za/" class="btn btn-secondary" style="text-decoration:none;" target="_blank">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
             Registration Form
           </a>
@@ -1710,7 +1710,7 @@ tr:hover td { background: rgba(26,53,96,0.02); }
                   </tr>
                 </thead>
                 <tbody id="recentTableBody">
-                  <tr><td colspan="6" style="text-align:center;color:var(--mid-gray);padding:40px;">No registrations yet. Share the <a href="registration.html" target="_blank" style="color:var(--navy);font-weight:600;">registration form</a> to get started.</td></tr>
+                  <tr><td colspan="6" style="text-align:center;color:var(--mid-gray);padding:40px;">No registrations yet. Share the <a href="https://indaba2026.kznera.org.za/" target="_blank" style="color:var(--navy);font-weight:600;">registration form</a> to get started.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -3090,7 +3090,7 @@ function renderRecentTable(delegates) {
   const recent = [...delegates].sort((a,b) => new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5);
   
   if (!recent.length) {
-    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--mid-gray);padding:40px;">No registrations yet. Share the <a href="registration.html" target="_blank" style="color:var(--navy);font-weight:600;">registration form</a> to get started.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--mid-gray);padding:40px;">No registrations yet. Share the <a href="https://indaba2026.kznera.org.za/" target="_blank" style="color:var(--navy);font-weight:600;">registration form</a> to get started.</td></tr>`;
     return;
   }
   
