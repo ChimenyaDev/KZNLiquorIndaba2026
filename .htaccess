@@ -1,0 +1,11 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Redirect: Legacy registration page permanently replaced by the new platform
+# Added: 2026-04-28
+# The old registration.html is kept in the repository for reference only.
+# All traffic to it is permanently redirected (301) to the new platform.
+# ──────────────────────────────────────────────────────────────────────────────
+
+RewriteEngine On
+
+# Redirect registration.html (and any query-string variants) to the new platform
+RewriteRule ^registration\.html$ https://indaba2026.kznera.org.za/ [R=301,L]
